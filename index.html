@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sitzplan – Wedding Seating Planner</title>
+  <meta name="description" content="Interactive wedding seating plan manager" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="app-header">
+      <h1>💒 Sitzplan</h1>
+      <div class="header-right">
+        <button class="btn btn-sm btn-accent" id="btn-print"
+          style="margin-right: 12px; background-color: var(--bg-glass); border-color: var(--border-color); color: var(--text-primary);">
+          🖨️ Venue drucken</button>
+        <span class="stats-badge" id="stats-badge">
+          <strong>0</strong> / 0 platziert · 0 Plätze gesamt
+        </span>
+      </div>
+    </header>
+
+    <!-- Main body -->
+    <div class="app-body">
+      <!-- Left: venue canvas -->
+      <div class="venue-panel" id="venue-panel">
+        <!-- Venue header with collapse toggle -->
+        <div class="venue-header">
+          <div class="venue-header-left">
+            <button class="btn btn-sm venue-toggle-btn" id="btn-toggle-venue" title="Toggle venue view">
+              <span class="venue-toggle-icon" id="venue-toggle-icon">◀</span>
+              <span id="venue-toggle-label">Venue ausblenden</span>
+            </button>
+          </div>
+          <div class="venue-header-right" id="venue-toolbar-inline">
+            <button class="btn btn-accent btn-sm" id="btn-add-7">+ 7er Tisch</button>
+            <button class="btn btn-accent btn-sm" id="btn-add-8">+ 8er Tisch</button>
+            <button class="btn btn-accent btn-sm" id="btn-add-10">+ 10er Tisch</button>
+            <div class="table-list" id="table-list">
+              <span class="table-list-empty">Noch keine Tische</span>
+            </div>
+          </div>
+        </div>
+        <!-- Canvas -->
+        <div class="venue-canvas-area" id="venue-canvas-area">
+          <div class="venue-container" id="venue-container">
+            <!-- SVG rendered by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: guest panel -->
+      <div class="guest-panel">
+        <div class="panel-header">
+          <h2>Gäste</h2>
+          <div class="panel-actions" style="display: flex; align-items: center; gap: 8px;">
+            <label id="toggle-family-label"
+              style="display: none; font-size: 0.8rem; align-items: center; gap: 6px; cursor: pointer; color: var(--text-secondary); margin-right: 4px;">
+              <input type="checkbox" id="toggle-family-grouping" checked style="margin:0;">
+              Familien gruppieren
+            </label>
+            <input type="text" id="guest-filter-input"
+              style="display: none; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 0.8rem; width: 140px;"
+              placeholder="Name filtern...">
+            <button class="btn btn-sm" id="btn-add-guest" style="display: none;">➕ Gast hinzufügen</button>
+            <button class="btn btn-sm" id="btn-expand-all">⬇ Alle ausklappen</button>
+            <input type="file" accept=".csv" id="csv-input" class="file-input-hidden" />
+            <button class="btn btn-sm" id="btn-import">📄 CSV importieren</button>
+            <button class="btn btn-sm" id="btn-diets">🎨 Diäten</button>
+          </div>
+        </div>
+        <div class="panel-body" id="guest-list">
+          <div class="empty-state" id="empty-state">
+            <p>Noch keine Gäste</p>
+            <button class="btn btn-accent" id="btn-import-empty">Gästeliste importieren</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Guest Modal -->
+  <div class="modal-overlay" id="add-guest-modal" style="display:none">
+    <div class="modal" style="width: 360px;">
+      <div class="modal-header">
+        <h2>Neuen Gast hinzufügen</h2>
+        <button class="modal-close" id="add-guest-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+          <div style="flex: 1;">
+            <label
+              style="display:block; margin-bottom: 6px; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Vorname</label>
+            <input type="text" id="add-guest-first" class="searchable-picker-input"
+              style="width: 100%; padding: 8px 12px; margin: 0; box-sizing: border-box;" placeholder="Vorname" />
+          </div>
+          <div style="flex: 1;">
+            <label
+              style="display:block; margin-bottom: 6px; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Nachname</label>
+            <input type="text" id="add-guest-last" class="searchable-picker-input"
+              style="width: 100%; padding: 8px 12px; margin: 0; box-sizing: border-box;" placeholder="Nachname" />
+          </div>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <label
+            style="display:block; margin-bottom: 6px; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Diät
+            / Allergie</label>
+          <select id="add-guest-diet" class="inline-diet-select"
+            style="width: 100%; max-width: none; border: 1px solid var(--border-color); background: var(--bg-card); padding: 8px 12px; border-radius: 4px; color: #fff; outline: none; box-sizing: border-box;">
+          </select>
+        </div>
+        <div style="margin-bottom: 24px;">
+          <label
+            style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer; color: var(--text-primary);">
+            <input type="checkbox" id="add-guest-hc" style="margin: 0; cursor: pointer;"> Benötigt Hochstuhl
+          </label>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+          <button class="btn btn-sm" id="add-guest-cancel">Abbrechen</button>
+          <button class="btn btn-sm btn-accent" id="add-guest-save">Gast hinzufügen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diet Config Modal -->
+  <div class="modal-overlay" id="diet-modal" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Diät / Allergie Optionen</h2>
+        <button class="modal-close" id="diet-modal-close">✕</button>
+      </div>
+      <div class="modal-body" id="diet-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Table Detail Modal -->
+  <div class="modal-overlay" id="table-detail-modal" style="display:none">
+    <div class="modal" style="width: 1500px; max-width: 95vw;">
+      <div class="modal-header">
+        <h2>Tischdetails</h2>
+        <button class="modal-close" id="table-detail-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+          <div style="flex: 1;">
+            <label for="table-detail-rename">Tischnummer / Name</label>
+            <input type="text" id="table-detail-rename" placeholder="z.B. 1A, VIP, Haupttisch" />
+          </div>
+          <div style="flex: 0 0 auto;">
+            <label for="table-detail-seatcount">Tischgröße</label>
+            <select id="table-detail-seatcount" style="width: 120px;">
+              <option value="7">7er Tisch</option>
+              <option value="8">8er Tisch</option>
+              <option value="10">10er Tisch</option>
+            </select>
+          </div>
+          <div style="display: flex; align-items: flex-end; gap: 16px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; white-space: nowrap; font-weight: 500; text-transform: none; letter-spacing: 0; margin-bottom: 0;">
+              <input type="checkbox" id="table-detail-fixed" style="margin:0; cursor:pointer; width:14px; height:14px; accent-color:#22c55e;"> Fixiert
+            </label>
+            <button class="btn btn-accent" id="table-detail-save">Name aktualisieren</button>
+            <button class="btn btn-danger" id="table-detail-remove">🗑️ Tisch entfernen</button>
+          </div>
+        </div>
+        <div style="display: flex; gap: 32px; align-items: flex-start;">
+          <div class="table-detail-svg-container" id="table-detail-svg-container"
+            style="flex: 1; display: flex; justify-content: center; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+          </div>
+          <div style="flex: 1.6; min-width: 750px;">
+            <h3
+              style="font-size: 0.9rem; font-weight: 600; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">
+              Zugewiesene Gäste</h3>
+            <div id="table-detail-guests" style="max-height: 520px; overflow-y: auto; padding-right: 4px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tooltip -->
+  <div class="seat-tooltip" id="seat-tooltip" style="display:none"></div>
+
+  <script src="app.js"></script>
+
+  <!-- Print: individual table pages rendered here (outside #app to avoid overflow:hidden clipping) -->
+  <div id="print-table-pages" class="print-only"></div>
+</body>
+
+</html>
