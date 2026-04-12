@@ -33,9 +33,11 @@ You can hide the Venue Panel to enter **Full Table View**, which transforms the 
 - **Table Details Modal:** Click on a table's center circle to open the details. Here you can:
   - Rename the table.
   - Change seating capacity (seats automatically re-number and shrink down as long as occupancy allows).
-  - Enable the **"Fixierte Plätze"** lock (turns individual seats green, indicating seat assignments are final).
+  - Toggle **"Gäste platziert"**: Indicates the group of people assigned to the table is finalized. Turns the table's center circle green on the venue map.
+  - Toggle **"Plätze fixiert"**: Indicates specific seat placements are finalized, turning individual seat borders green.
+  - *Note:* These locks are physically linked. Unchecking "Gäste platziert" will automatically uncheck "Plätze fixiert" (you can't finalize seats if you don't know who is at the table!). If BOTH are checked, the entire detail modal illuminates with a bright green border, indicating the table is 100% complete!
   - Delete the table.
-- **Locking Table Groups (Split View):** In the split-view guest list, each table has a **"Fixiert"** checkbox in its header. Checking this locks the table's position into a "collapsed" state by default and gives the table's center a stable green ring on the visual diagram!
+- **Table Groups (Split View):** In the split-view guest list, each table mirrors the **"Gäste platziert"** checkbox right in its header. Checking this directly from the guest list performs the same lock, turns the table's center green, and auto-collapses the group to save screen space!
 
 ### 2. Managing Guests
 Guests can be added individually via the **"➕ Gast hinzufügen"** button or via bulk **"📄 CSV importieren"**. 
