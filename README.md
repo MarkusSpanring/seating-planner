@@ -38,10 +38,13 @@ You can hide the Venue Panel to enter **Full Table View**, which transforms the 
 - **Locking Table Groups (Split View):** In the split-view guest list, each table has a **"Fixiert"** checkbox in its header. Checking this locks the table's position into a "collapsed" state by default and gives the table's center a stable green ring on the visual diagram!
 
 ### 2. Managing Guests
-Guests can be added individually via the **"➕ Gast hinzufügen"** button (only available in Full Table View) or via bulk CSV import. 
+Guests can be added individually via the **"➕ Gast hinzufügen"** button or via bulk **"📄 CSV importieren"**. 
+> [!NOTE] 
+> The global guest actions (Add Guest, CSV Import, Age Config, and Diet Config) are uniquely engineered for bulk-management workflows and are strategically hidden until you hide the venue layout and enter the **Full Table View**.
+
 - **Properties & Adjustments:** 
-  - *Diet / Allergies*: Color-coded for rapid visual tracking. You can customize the name and color of dietary classes globally by clicking the **"🎨 Diäten"** button in the guest panel header!
-  - *Age Category*: Used for stats and accurate pricing breakdowns.
+  - *Diet / Allergies*: Color-coded for rapid visual tracking. You can customize the name and color of dietary classes globally by clicking the **"🎨 Diäten"** button.
+  - *Age Category*: Used for stats and accurate pricing breakdowns. You can configure and define your own dynamic demographic groups natively by selecting the **"👶 Altersgruppen"** button!
   - *High Chair (Hochstuhl)*: The seat shape on the visual layout changes perfectly from a circle into a rounded square. 
 
 ### 3. Placing Guests & Swapping Seats
@@ -65,7 +68,7 @@ The print view generates a polished, multi-page layout:
 - **Subsequent Pages:** Generate a per-table breakdown, providing the list of guests sitting at each table, along with localized legends to describe used diet colors and high chairs. 
 
 ### 6. CSV Bulk Import
-Click **"📄 CSV importieren"** to load a raw `.csv` list of your guests. Ensure your CSV is structured with the following format (No headers strictly required):
+When in the Full Table View, click **"📄 CSV importieren"** to load a raw `.csv` list of your guests. Ensure your CSV is structured with the following format (No headers strictly required):
 `[First Name], [Last Name], [Optional: High Chair True/False]`
 
 ---

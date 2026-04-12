@@ -68,8 +68,9 @@
             <button class="btn btn-sm" id="btn-add-guest" style="display: none;">➕ Gast hinzufügen</button>
             <button class="btn btn-sm" id="btn-expand-all">⬇ Alle ausklappen</button>
             <input type="file" accept=".csv" id="csv-input" class="file-input-hidden" />
-            <button class="btn btn-sm" id="btn-import">📄 CSV importieren</button>
-            <button class="btn btn-sm" id="btn-diets">🎨 Diäten</button>
+            <button class="btn btn-sm" id="btn-import" style="display: none;">📄 CSV importieren</button>
+            <button class="btn btn-sm" id="btn-ages" style="display: none;">👶 Altersgruppen</button>
+            <button class="btn btn-sm" id="btn-diets" style="display: none;">🎨 Diäten</button>
           </div>
         </div>
         <div class="panel-body" id="guest-list">
@@ -134,6 +135,17 @@
         <button class="modal-close" id="diet-modal-close">✕</button>
       </div>
       <div class="modal-body" id="diet-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Age Config Modal -->
+  <div class="modal-overlay" id="age-modal" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Altersgruppen konfigurieren</h2>
+        <button class="modal-close" id="age-modal-close">✕</button>
+      </div>
+      <div class="modal-body" id="age-modal-body"></div>
     </div>
   </div>
 

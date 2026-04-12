@@ -31,10 +31,18 @@
     '#84cc16'  // Lime
   ];
 
+  var DEFAULT_AGES = [
+    { id: 'age-adult', name: 'Erwachsen' },
+    { id: 'age-under12', name: '< 12 J.' },
+    { id: 'age-under6', name: '< 6 J.' },
+    { id: 'age-under3', name: '< 3 J.' }
+  ];
+
   // ── State ──────────────────────────────────────────────────────────
   var state = {
     guests: [],
     dietOptions: DEFAULT_DIETS.map(function (d) { return Object.assign({}, d); }),
+    ageGroups: DEFAULT_AGES.map(function (a) { return Object.assign({}, a); }),
     tables: [],
     families: [],
     nextTableNumber: 1,
@@ -64,6 +72,7 @@
         if (data) {
           state.guests = data.guests || [];
           state.dietOptions = data.dietOptions || DEFAULT_DIETS.map(function (d) { return Object.assign({}, d); });
+          state.ageGroups = data.ageGroups || DEFAULT_AGES.map(function (a) { return Object.assign({}, a); });
           state.tables = data.tables || [];
           state.families = data.families || [];
           state.nextTableNumber = data.nextTableNumber || 1;
@@ -83,6 +92,7 @@
       body: JSON.stringify({
         guests: state.guests,
         dietOptions: state.dietOptions,
+        ageGroups: state.ageGroups,
         tables: state.tables,
         families: state.families,
         nextTableNumber: state.nextTableNumber,
@@ -869,18 +879,18 @@
     svg.appendChild(shapeGroup);
 
     // ── Age summary legend ───────────────────────────────────────
-    var ageAdult = 0, ageUnder3 = 0, ageUnder6 = 0, ageUnder12 = 0;
+    var ageCounts = {};
+    state.ageGroups.forEach(function(a) { ageCounts[a.id] = 0; });
+    
     state.guests.forEach(function (g) {
-      if (g.age === 'under3') ageUnder3++;
-      else if (g.age === 'under6') ageUnder6++;
-      else if (g.age === 'under12') ageUnder12++;
-      else ageAdult++;
+      var aId = g.age || 'age-adult';
+      if (ageCounts[aId] !== undefined) ageCounts[aId]++;
     });
+    
     var ageRows = [];
-    if (ageAdult > 0) ageRows.push({ label: 'Erwachsen', count: ageAdult });
-    if (ageUnder12 > 0) ageRows.push({ label: '< 12 J.', count: ageUnder12 });
-    if (ageUnder6 > 0) ageRows.push({ label: '< 6 J.', count: ageUnder6 });
-    if (ageUnder3 > 0) ageRows.push({ label: '< 3 J.', count: ageUnder3 });
+    state.ageGroups.forEach(function(a) {
+      if (ageCounts[a.id] > 0) ageRows.push({ label: a.name, count: ageCounts[a.id] });
+    });
 
     var alW = slW;
     var alH = 32 + ageRows.length * 20 + 20; // header + rows + total
@@ -989,12 +999,14 @@
         tbl.appendChild(thead);
         var tbody = document.createElement('tbody');
         guests.forEach(function (g) {
+          var aGrp = state.ageGroups.find(function(a) { return a.id === (g.age || 'age-adult'); });
+          var aName = aGrp ? aGrp.name : 'Erwachsen';
           var tr = document.createElement('tr');
           tr.innerHTML =
             '<td class="print-seat-num">' + g.seatNumber + '</td>' +
             '<td>' + escHtml(g.firstName || '') + '</td>' +
             '<td>' + escHtml(g.lastName || '') + '</td>' +
-            '<td>' + (g.age === 'under3' ? '< 3 J.' : g.age === 'under6' ? '< 6 J.' : g.age === 'under12' ? '< 12 J.' : 'Erwachsen') + '</td>';
+            '<td>' + escHtml(aName) + '</td>';
           tbody.appendChild(tr);
         });
         tbl.appendChild(tbody);
@@ -1333,6 +1345,9 @@
       var tLabel = $('toggle-family-label'); if (tLabel) tLabel.style.display = 'flex';
       var fInput = $('guest-filter-input'); if (fInput) fInput.style.display = 'inline-block';
       var addBtn = $('btn-add-guest'); if (addBtn) addBtn.style.display = 'block';
+      var importBtn = $('btn-import'); if (importBtn) importBtn.style.display = 'inline-block';
+      var agesBtn = $('btn-ages'); if (agesBtn) agesBtn.style.display = 'inline-block';
+      var dietsBtn = $('btn-diets'); if (dietsBtn) dietsBtn.style.display = 'inline-block';
       var exBtn = $('btn-expand-all'); if (exBtn) exBtn.style.display = 'none'; // hide in full-table view
     } else {
       venuePanel.classList.remove('venue-collapsed');
@@ -1344,6 +1359,9 @@
       var tLabel = $('toggle-family-label'); if (tLabel) tLabel.style.display = 'none';
       var fInput = $('guest-filter-input'); if (fInput) { fInput.style.display = 'none'; fInput.value = ''; }
       var addBtn = $('btn-add-guest'); if (addBtn) addBtn.style.display = 'none';
+      var importBtn = $('btn-import'); if (importBtn) importBtn.style.display = 'none';
+      var agesBtn = $('btn-ages'); if (agesBtn) agesBtn.style.display = 'none';
+      var dietsBtn = $('btn-diets'); if (dietsBtn) dietsBtn.style.display = 'none';
       var exBtn = $('btn-expand-all');
       if (exBtn) {
         exBtn.style.display = 'inline-flex';
@@ -1882,18 +1900,12 @@
       ageCol.className = 'guest-col-age';
       var ageSel = document.createElement('select');
       ageSel.className = 'inline-select';
-      var ageOptions = [
-        { value: 'adult', label: 'Erwachsen' },
-        { value: 'under3', label: '< 3 J.' },
-        { value: 'under6', label: '< 6 J.' },
-        { value: 'under12', label: '< 12 J.' }
-      ];
-      var currentAge = guest.age || 'adult';
-      ageOptions.forEach(function (opt) {
+      var currentAge = guest.age || 'age-adult';
+      state.ageGroups.forEach(function (opt) {
         var o = document.createElement('option');
-        o.value = opt.value;
-        o.textContent = opt.label;
-        if (opt.value === currentAge) o.selected = true;
+        o.value = opt.id;
+        o.textContent = opt.name;
+        if (opt.id === currentAge) o.selected = true;
         ageSel.appendChild(o);
       });
       ageSel.addEventListener('change', function (e) {
@@ -2204,6 +2216,72 @@
     renderDietModal();
   }
 
+  // ── Age Modal ──────────────────────────────────────────────────────
+  function renderAgeModal() {
+    var body = $('age-modal-body');
+    body.innerHTML = '';
+
+    state.ageGroups.forEach(function (a) {
+      var item = document.createElement('div');
+      item.className = 'diet-item'; // Reuse same layout CSS class
+      item.style.gridTemplateColumns = '1fr auto';
+
+      var name = document.createElement('span');
+      name.className = 'diet-name';
+      name.textContent = a.name;
+      item.appendChild(name);
+
+      if (a.id !== 'age-adult') {
+        var btn = document.createElement('button');
+        btn.className = 'btn btn-sm btn-danger';
+        btn.textContent = 'Entfernen';
+        btn.addEventListener('click', function () {
+          state.ageGroups = state.ageGroups.filter(function (x) { return x.id !== a.id; });
+          state.guests.forEach(function (g) {
+            if (g.age === a.id) g.age = 'age-adult'; // Fallback to adult
+          });
+          saveAndRender();
+          renderAgeModal();
+        });
+        item.appendChild(btn);
+      }
+
+      body.appendChild(item);
+    });
+
+    // Add new row
+    var addRow = document.createElement('div');
+    addRow.className = 'add-diet-row'; // reuse same CSS layout
+
+    var nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.placeholder = 'Neue Altersgruppe (z.B. Teenager)…';
+    nameInput.id = 'new-age-name';
+    addRow.appendChild(nameInput);
+
+    var addBtn = document.createElement('button');
+    addBtn.className = 'btn btn-accent btn-sm';
+    addBtn.textContent = 'Hinzufügen';
+    addBtn.addEventListener('click', addAge);
+    addRow.appendChild(addBtn);
+
+    nameInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') addAge();
+    });
+
+    body.appendChild(addRow);
+  }
+
+  function addAge() {
+    var nameInput = $('new-age-name');
+    var name = nameInput.value.trim();
+    if (!name) return;
+    var id = 'age-' + Date.now();
+    state.ageGroups.push({ id: id, name: name });
+    saveAndRender();
+    renderAgeModal();
+  }
+
   // ── CSV Import ─────────────────────────────────────────────────────
   function handleCSVImport(e) {
     var file = e.target.files[0];
@@ -2321,6 +2399,17 @@
     });
     $('diet-modal').addEventListener('click', function (e) {
       if (e.target === $('diet-modal')) $('diet-modal').style.display = 'none';
+    });
+
+    $('btn-ages').addEventListener('click', function () {
+      renderAgeModal();
+      $('age-modal').style.display = '';
+    });
+    $('age-modal-close').addEventListener('click', function () {
+      $('age-modal').style.display = 'none';
+    });
+    $('age-modal').addEventListener('click', function (e) {
+      if (e.target === $('age-modal')) $('age-modal').style.display = 'none';
     });
 
     // Table Detail Modal
