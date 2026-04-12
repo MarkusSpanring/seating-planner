@@ -1276,40 +1276,34 @@
       fam.memberIds.forEach(function (gid) { guestsInFamilies[gid] = true; });
     });
 
-    // Show families first
-    if (useFamilyGrouping) {
-      state.families.forEach(function (fam) {
-        panel.appendChild(renderFamilyCard(fam, true));
+    var filterInput = $('guest-filter-input');
+    var filterText = (filterInput && filterInput.style.display !== 'none') ? filterInput.value.trim().toLowerCase() : '';
+    var effectiveGrouping = filterText === '';
+
+    // Show families first if not filtering
+    if (effectiveGrouping) {
+      var sortedFamilies = state.families.slice().sort(function (a, b) {
+        var aGuest = a.memberIds.length > 0 ? state.guests.find(function (g) { return g.id === a.memberIds[0]; }) : null;
+        var bGuest = b.memberIds.length > 0 ? state.guests.find(function (g) { return g.id === b.memberIds[0]; }) : null;
+        var aName = aGuest ? (aGuest.lastName || aGuest.firstName || '').toLowerCase() : '';
+        var bName = bGuest ? (bGuest.lastName || bGuest.firstName || '').toLowerCase() : '';
+        return aName.localeCompare(bName);
+      });
+      sortedFamilies.forEach(function (fam) {
+        panel.appendChild(renderFamilyGroupBlock(fam, null, true));
       });
     }
 
-    // Gather non-family guests sorted by table then seat
-    var sortedTables = state.tables.slice().sort(function (a, b) {
-      return String(a.number).localeCompare(String(b.number), undefined, { numeric: true, sensitivity: 'base' });
-    });
-
-    var allGuests = [];
-    sortedTables.forEach(function (table) {
-      var guests = guestsAtTable(table.id);
-      if (useFamilyGrouping) {
-        guests = guests.filter(function (g) { return !guestsInFamilies[g.id]; });
-      }
-      guests.sort(function (a, b) { return (a.seatNumber || 999) - (b.seatNumber || 999); });
-      guests.forEach(function (g) { allGuests.push(g); });
-    });
-    var unassigned = unassignedGuests();
-    if (useFamilyGrouping) {
-      unassigned = unassigned.filter(function (g) { return !guestsInFamilies[g.id]; });
+    var allGuests = state.guests.slice();
+    if (effectiveGrouping) {
+      allGuests = allGuests.filter(function (g) { return !guestsInFamilies[g.id]; });
     }
-    unassigned.sort(function (a, b) {
+    
+    allGuests.sort(function (a, b) {
       var aName = (a.lastName || a.firstName || '').toLowerCase();
       var bName = (b.lastName || b.firstName || '').toLowerCase();
       return aName.localeCompare(bName);
     });
-    unassigned.forEach(function (g) { allGuests.push(g); });
-
-    var filterInput = $('guest-filter-input');
-    var filterText = (filterInput && filterInput.style.display !== 'none') ? filterInput.value.trim().toLowerCase() : '';
 
     allGuests.forEach(function (guest) {
       if (filterText) {
@@ -1395,168 +1389,7 @@
     });
   }
 
-  // ── Family Card Rendering ───────────────────────────────────────────
-  function renderFamilyCard(family, isTableView, memberSubset) {
-    var isExpanded = !!expandedFamilies[family.id];
-    var allMembers = getFamilyMembers(family.id);
-    var members = memberSubset ? allMembers.filter(function (m) {
-      return memberSubset.indexOf(m.id) >= 0;
-    }) : allMembers;
 
-    var card = document.createElement('div');
-    card.className = 'family-card' + (isExpanded ? ' expanded' : '');
-
-    // Header row (always visible)
-    var header = document.createElement('div');
-    header.className = 'family-card-header';
-    var leftDiv = document.createElement('div');
-    leftDiv.className = 'family-header-left';
-    leftDiv.innerHTML =
-      '<span class="group-chevron ' + (isExpanded ? 'open' : '') + '">▶</span>' +
-      '<span class="family-icon">👨‍👩‍👧‍👦</span>' +
-      '<span class="family-name-text">' + escHtml(family.name) + '</span>';
-    header.appendChild(leftDiv);
-
-    var rightDiv = document.createElement('div');
-    rightDiv.style.display = 'flex';
-    rightDiv.style.alignItems = 'center';
-    rightDiv.style.gap = '24px';
-    rightDiv.style.flexShrink = '0';
-
-    if (!isTableView) {
-      var sortedTables = getAvailableTablesForGroup(members);
-      var currentTableId = members.length > 0 ? members[0].tableId : null;
-
-      var tableSel = document.createElement('select');
-      tableSel.className = 'inline-select';
-      tableSel.style.maxWidth = '80px';
-
-      var defaultOpt = document.createElement('option');
-      defaultOpt.value = '';
-      defaultOpt.textContent = '—';
-      if (!currentTableId) defaultOpt.selected = true;
-      tableSel.appendChild(defaultOpt);
-
-      sortedTables.forEach(function (t) {
-        var o = document.createElement('option');
-        o.value = String(t.id);
-        o.textContent = String(t.number);
-        if (String(t.id) === String(currentTableId || '')) o.selected = true;
-        tableSel.appendChild(o);
-      });
-
-      tableSel.addEventListener('change', function (e) {
-        e.stopPropagation();
-        assignGroupToTable(members, tableSel.value);
-        saveAndRender();
-      });
-      tableSel.addEventListener('click', function (e) { e.stopPropagation(); });
-      rightDiv.appendChild(tableSel);
-    }
-
-    var countSpan = document.createElement('span');
-    countSpan.className = 'count';
-    countSpan.style.whiteSpace = 'nowrap';
-    countSpan.style.width = '75px';
-    countSpan.style.textAlign = 'right';
-    countSpan.textContent = members.length + ' Mitglieder';
-    rightDiv.appendChild(countSpan);
-
-    header.appendChild(rightDiv);
-    header.addEventListener('click', function () {
-      expandedFamilies[family.id] = !isExpanded;
-      renderGuestList();
-    });
-    card.appendChild(header);
-
-    if (!isExpanded) return card;
-
-    // Expanded body — no side padding so member rows align with outside header
-    var body = document.createElement('div');
-    body.className = 'family-card-body';
-
-    // Member rows
-    members.forEach(function (guest) {
-      var row = document.createElement('div');
-      row.className = 'family-member-row';
-
-      // Guest card (inline fields) — only show HC/Diet in table view
-      var memberCard = renderGuestCard(guest, isTableView, true);
-      memberCard.classList.add('family-member-card');
-      row.appendChild(memberCard);
-
-      // Inject radio + remove buttons into the actions cell for perfect alignment
-      var actionsCell = memberCard.querySelector('.guest-col-actions');
-      if (actionsCell) {
-        // Radio button for name source — inside actions cell
-        var radio = document.createElement('input');
-        radio.type = 'radio';
-        radio.name = 'fam-name-' + family.id;
-        radio.className = 'family-radio family-radio-inline';
-        radio.checked = (family.nameSourceGuestId === guest.id);
-        radio.title = 'Familienname von diesem Gast ableiten';
-        radio.addEventListener('change', (function(g) { return function () {
-          setFamilyNameSource(family.id, g.id);
-        }; })(guest));
-        radio.addEventListener('click', function (e) { e.stopPropagation(); });
-        actionsCell.insertBefore(radio, actionsCell.firstChild);
-
-        // Remove from family button (table view only)
-        if (isTableView) {
-          var removeBtn = document.createElement('button');
-          removeBtn.className = 'btn btn-sm family-remove-btn';
-          removeBtn.textContent = '✕';
-          removeBtn.title = 'Aus Familie entfernen';
-          removeBtn.addEventListener('click', (function(g) { return function(e) {
-            e.stopPropagation();
-            removeFromFamily(family.id, g.id);
-          }; })(guest));
-          actionsCell.appendChild(removeBtn);
-        }
-      }
-
-      body.appendChild(row);
-    });
-
-
-    // Family actions
-    if (isTableView) {
-      var actions = document.createElement('div');
-      actions.className = 'family-actions';
-
-      // Add member searchable picker
-      var addWrap = document.createElement('div');
-      addWrap.className = 'family-add-member';
-      var addLabel = document.createElement('label');
-      addLabel.textContent = 'Mitglied hinzufügen';
-      addWrap.appendChild(addLabel);
-      var excludeIds = family.memberIds.slice();
-      // Also exclude guests in other families
-      state.guests.forEach(function (g) {
-        var ef = getFamilyForGuest(g.id);
-        if (ef && ef.id !== family.id && excludeIds.indexOf(g.id) < 0) excludeIds.push(g.id);
-      });
-      var picker = makeSearchableGuestPicker('Search guest…', excludeIds, function (selectedId) {
-        addToFamily(family.id, selectedId);
-      });
-      addWrap.appendChild(picker);
-      actions.appendChild(addWrap);
-
-      // Dissolve family button
-      var dissolveBtn = document.createElement('button');
-      dissolveBtn.className = 'btn btn-sm btn-danger family-dissolve-btn';
-      dissolveBtn.textContent = 'Familie auflösen';
-      dissolveBtn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        dissolveFamily(family.id);
-      });
-      actions.appendChild(dissolveBtn);
-
-      body.appendChild(actions);
-    }
-    card.appendChild(body);
-    return card;
-  }
 
   function renderGuestGroup(key, title, guests, maxSeats, tableObj) {
     // Default: fixed tables collapse unless the user has explicitly expanded them
@@ -1635,8 +1468,9 @@
   }
 
   // Renders a subtle grouped block for a family in the table view
+  // Renders a subtle grouped block for a family in the table view
   // Always expanded, no collapse toggle, pill select in top-left corner
-  function renderFamilyGroupBlock(family, memberIdSubset) {
+  function renderFamilyGroupBlock(family, memberIdSubset, isTableView) {
     var allMembers = getFamilyMembers(family.id);
     var members = memberIdSubset ? allMembers.filter(function (m) {
       return memberIdSubset.indexOf(m.id) >= 0;
@@ -1653,62 +1487,144 @@
     block.className = 'family-group-block';
 
     // ── Pill (is itself a native select) ────────────────────────────
-    if (isSplit) {
-      // Static non-interactive pill for split families
-      var staticPill = document.createElement('div');
-      staticPill.className = 'family-group-pill family-group-pill-static';
-      staticPill.innerHTML =
-        '<span class="family-group-pill-icon">\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66</span>' +
-        '<span class="family-group-pill-label">split tables</span>';
-      block.appendChild(staticPill);
+    if (!isTableView) {
+      if (isSplit) {
+        // Static non-interactive pill for split families
+        var staticPill = document.createElement('div');
+        staticPill.className = 'family-group-pill family-group-pill-static';
+        staticPill.innerHTML =
+          '<span class="family-group-pill-icon">\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66</span>' +
+          '<span class="family-group-pill-label">split tables</span>';
+        block.appendChild(staticPill);
+      } else {
+        // Pill wrapper — the select is placed over it so clicking opens immediately
+        var pillWrap = document.createElement('div');
+        pillWrap.className = 'family-group-pill-wrap';
+
+        var pillIconEl = document.createElement('span');
+        pillIconEl.className = 'family-group-pill-icon';
+        pillIconEl.textContent = '\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66';
+        pillWrap.appendChild(pillIconEl);
+
+        var sortedTables = getAvailableTablesForGroup(members);
+        var currentTableId = tableIdList.length === 1 ? tableIdList[0] : null;
+
+        var pillSel = document.createElement('select');
+        pillSel.className = 'family-group-pill-select';
+        pillSel.title = 'Assign family to a table';
+
+        var defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = currentTableId ? 'Reassign...' : 'Select table...';
+        if (!currentTableId) defaultOpt.selected = true;
+        pillSel.appendChild(defaultOpt);
+
+        sortedTables.forEach(function (t) {
+          var o = document.createElement('option');
+          o.value = String(t.id);
+          o.textContent = 'Tisch ' + String(t.number);
+          if (String(t.id) === String(currentTableId || '')) o.selected = true;
+          pillSel.appendChild(o);
+        });
+
+        pillSel.addEventListener('change', function (e) {
+          e.stopPropagation();
+          assignGroupToTable(members, pillSel.value);
+          saveAndRender();
+        });
+        pillSel.addEventListener('click', function (e) { e.stopPropagation(); });
+
+        pillWrap.appendChild(pillSel);
+        block.appendChild(pillWrap);
+      }
     } else {
-      // Pill wrapper — the select is placed over it so clicking opens immediately
-      var pillWrap = document.createElement('div');
-      pillWrap.className = 'family-group-pill-wrap';
+      // Full Table View Logic
+      block.style.paddingTop = '20px';
 
-      var pillIconEl = document.createElement('span');
-      pillIconEl.className = 'family-group-pill-icon';
-      pillIconEl.textContent = '\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66';
-      pillWrap.appendChild(pillIconEl);
+      // Pill: Searchable Picker for Adding Members
+      var pillWrapFull = document.createElement('div');
+      pillWrapFull.className = 'family-group-pill-wrap';
+      pillWrapFull.title = 'Suchen, um der Familie ein weiteres Mitglied hinzuzufügen';
 
-      var sortedTables = getAvailableTablesForGroup(members);
-      var currentTableId = tableIdList.length === 1 ? tableIdList[0] : null;
+      var excludeIds = family.memberIds.slice();
+      var picker = makeSearchableGuestPicker('\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66 Mitglied hinzufügen...', excludeIds, function (selectedId) {
+        addToFamily(family.id, selectedId);
+      }, true);
 
-      var pillSel = document.createElement('select');
-      pillSel.className = 'family-group-pill-select';
-      pillSel.title = 'Assign family to a table';
+      var pickerInput = picker.querySelector('input');
+      pickerInput.style.background = 'transparent';
+      pickerInput.style.border = 'none';
+      pickerInput.style.padding = '0 6px';
+      pickerInput.style.margin = '0';
+      pickerInput.style.fontSize = '0.7rem';
+      pickerInput.style.fontWeight = '600';
+      pickerInput.style.color = 'rgba(139, 92, 246, 0.8)';
+      pickerInput.style.width = '190px';
+      pickerInput.style.outline = 'none';
 
-      var defaultOpt = document.createElement('option');
-      defaultOpt.value = '';
-      defaultOpt.textContent = currentTableId ? 'Reassign...' : 'Select table...';
-      if (!currentTableId) defaultOpt.selected = true;
-      pillSel.appendChild(defaultOpt);
+      pillWrapFull.appendChild(picker);
+      block.appendChild(pillWrapFull);
 
-      sortedTables.forEach(function (t) {
-        var o = document.createElement('option');
-        o.value = String(t.id);
-        o.textContent = 'Tisch ' + String(t.number);
-        if (String(t.id) === String(currentTableId || '')) o.selected = true;
-        pillSel.appendChild(o);
-      });
-
-      pillSel.addEventListener('change', function (e) {
-        e.stopPropagation();
-        assignGroupToTable(members, pillSel.value);
-        saveAndRender();
-      });
-      pillSel.addEventListener('click', function (e) { e.stopPropagation(); });
-
-      pillWrap.appendChild(pillSel);
+      // Top-Right Dissolve Family Button
+      var dissolveBtn = document.createElement('button');
+      dissolveBtn.className = 'btn btn-sm family-dissolve-btn';
+      dissolveBtn.textContent = '✕ Familie auflösen';
+      dissolveBtn.style.position = 'absolute';
+      dissolveBtn.style.top = '-12px';
+      dissolveBtn.style.right = '8px';
+      dissolveBtn.style.background = 'var(--bg-secondary)';
+      dissolveBtn.style.border = '1px solid rgba(139, 92, 246, 0.3)';
+      dissolveBtn.style.borderRadius = '20px';
+      dissolveBtn.style.padding = '2px 8px';
+      dissolveBtn.style.fontSize = '0.65rem';
+      dissolveBtn.style.color = 'var(--text-secondary)';
+      dissolveBtn.style.fontWeight = '600';
+      dissolveBtn.style.zIndex = '5';
+      dissolveBtn.style.transition = 'all 0.15s ease';
       
-      block.appendChild(pillWrap);
+      dissolveBtn.addEventListener('mouseenter', function() {
+        dissolveBtn.style.background = 'rgba(239, 68, 68, 0.1)';
+        dissolveBtn.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+        dissolveBtn.style.color = 'var(--danger)';
+      });
+      dissolveBtn.addEventListener('mouseleave', function() {
+        dissolveBtn.style.background = 'var(--bg-secondary)';
+        dissolveBtn.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+        dissolveBtn.style.color = 'var(--text-secondary)';
+      });
+      dissolveBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dissolveFamily(family.id);
+      });
+      block.appendChild(dissolveBtn);
     }
 
     // ── Member rows (always visible) ─────────────────────────────────
     members.forEach(function (guest) {
       var row = document.createElement('div');
       row.className = 'family-group-member-row';
-      var memberCard = renderGuestCard(guest);
+
+      var memberCard;
+      if (isTableView) {
+        memberCard = renderGuestCard(guest, true, true);
+        memberCard.classList.add('family-member-card');
+        
+        var actionsCell = memberCard.querySelector('.guest-col-actions');
+        if (actionsCell) {
+          var removeBtn = document.createElement('button');
+          removeBtn.className = 'btn btn-sm family-remove-btn';
+          removeBtn.textContent = '✕';
+          removeBtn.title = 'Aus Familie entfernen';
+          removeBtn.addEventListener('click', (function(g) { return function(e) {
+            e.stopPropagation();
+            removeFromFamily(family.id, g.id);
+          }; })(guest));
+          actionsCell.appendChild(removeBtn);
+        }
+      } else {
+        memberCard = renderGuestCard(guest);
+      }
+      
       row.appendChild(memberCard);
       block.appendChild(row);
     });
@@ -2107,13 +2023,14 @@
   }
 
   // Searchable guest picker for family linking
-  function getGuestListForPicker(excludeIds) {
+  function getGuestListForPicker(excludeIds, onlyUngrouped) {
     var list = [];
     var addedFamilies = {};
     state.guests.forEach(function (g) {
       if (excludeIds && excludeIds.indexOf(g.id) >= 0) return;
       var fam = getFamilyForGuest(g.id);
       if (fam) {
+        if (onlyUngrouped) return;
         if (!addedFamilies[fam.id]) {
           // Ensure no member of this family is in excludeIds (to avoid linking a family to itself)
           var hasExcluded = fam.memberIds.some(function (mid) { return excludeIds && excludeIds.indexOf(mid) >= 0; });
@@ -2138,7 +2055,7 @@
     return list;
   }
 
-  function makeSearchableGuestPicker(placeholder, excludeIds, onSelect) {
+  function makeSearchableGuestPicker(placeholder, excludeIds, onSelect, onlyUngrouped) {
     var container = document.createElement('div');
     container.className = 'searchable-picker';
 
@@ -2154,7 +2071,7 @@
     dropdown.style.display = 'none';
     document.body.appendChild(dropdown);
 
-    var guestList = getGuestListForPicker(excludeIds);
+    var guestList = getGuestListForPicker(excludeIds, onlyUngrouped);
 
     function positionDropdown() {
       var rect = input.getBoundingClientRect();
@@ -2391,20 +2308,7 @@
       if (e.target === $('add-guest-modal')) $('add-guest-modal').style.display = 'none';
     });
     $('guest-filter-input').addEventListener('input', function () {
-      if (this.value.trim() !== '' && useFamilyGrouping) {
-        useFamilyGrouping = false;
-        var cb = $('toggle-family-grouping');
-        if (cb) cb.checked = false;
-      }
       renderGuestList();
-    });
-    $('toggle-family-grouping').addEventListener('change', function (e) {
-      useFamilyGrouping = e.target.checked;
-      if (useFamilyGrouping) {
-        var fInput = $('guest-filter-input');
-        if (fInput) fInput.value = '';
-      }
-      renderAll();
     });
     $('btn-import').addEventListener('click', function () { $('csv-input').click(); });
     $('btn-diets').addEventListener('click', function () {
