@@ -151,7 +151,7 @@
 
   <!-- Table Detail Modal -->
   <div class="modal-overlay" id="table-detail-modal" style="display:none">
-    <div class="modal" style="width: 1500px; max-width: 95vw;">
+    <div class="modal" id="table-detail-modal-content" style="width: 1500px; max-width: 95vw; transition: box-shadow 0.2s ease, border-color 0.2s ease;">
       <div class="modal-header">
         <h2>Tischdetails</h2>
         <button class="modal-close" id="table-detail-close">✕</button>
@@ -172,7 +172,10 @@
           </div>
           <div style="display: flex; align-items: flex-end; gap: 16px;">
             <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; white-space: nowrap; font-weight: 500; text-transform: none; letter-spacing: 0; margin-bottom: 0;">
-              <input type="checkbox" id="table-detail-fixed" style="margin:0; cursor:pointer; width:14px; height:14px; accent-color:#22c55e;"> Fixiert
+              <input type="checkbox" id="table-detail-table-fixed" style="margin:0; cursor:pointer; width:14px; height:14px; accent-color:#22c55e;"> Gäste platziert
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; white-space: nowrap; font-weight: 500; text-transform: none; letter-spacing: 0; margin-bottom: 0;">
+              <input type="checkbox" id="table-detail-fixed" style="margin:0; cursor:pointer; width:14px; height:14px; accent-color:#22c55e;"> Plätze fixiert
             </label>
             <button class="btn btn-accent" id="table-detail-save">Name aktualisieren</button>
             <button class="btn btn-danger" id="table-detail-remove">🗑️ Tisch entfernen</button>

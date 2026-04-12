@@ -338,12 +338,26 @@
       opt.disabled = parseInt(opt.value) < seatedAtTable;
     });
 
+    $('table-detail-table-fixed').checked = !!tbl.fixed;
     $('table-detail-fixed').checked = !!tbl.seatsFixed;
+    updateTableDetailModalVisuals(tbl);
 
     renderTableDetailSVG(tbl.id);
     renderTableDetailGuests(tbl.id);
 
     $('table-detail-modal').style.display = 'flex';
+  }
+
+  function updateTableDetailModalVisuals(tbl) {
+    var contentNode = $('table-detail-modal-content');
+    if (!contentNode) return;
+    if (tbl.fixed && tbl.seatsFixed) {
+      contentNode.style.border = '2px solid #22c55e';
+      contentNode.style.boxShadow = '0 0 15px rgba(34, 197, 94, 0.4)';
+    } else {
+      contentNode.style.border = '1px solid var(--border-color)';
+      contentNode.style.boxShadow = '';
+    }
   }
 
   function saveTableNumber() {
@@ -1444,11 +1458,14 @@
       fixedCb.addEventListener('change', function (e) {
         e.stopPropagation();
         tableObj.fixed = fixedCb.checked;
+        if (!fixedCb.checked) {
+          tableObj.seatsFixed = false;
+        }
         saveAndRender();
       });
 
       var fixedSpan = document.createElement('span');
-      fixedSpan.textContent = 'Fixiert';
+      fixedSpan.textContent = 'Gäste platziert';
 
       fixedLabel.appendChild(fixedCb);
       fixedLabel.appendChild(fixedSpan);
@@ -2456,7 +2473,20 @@
       var tbl = getTable(currentEditingTableId);
       if (!tbl) return;
       tbl.seatsFixed = this.checked;
+      updateTableDetailModalVisuals(tbl);
       saveAndRender(); // re-renders venue SVG seat borders only
+    });
+    $('table-detail-table-fixed').addEventListener('change', function () {
+      if (!currentEditingTableId) return;
+      var tbl = getTable(currentEditingTableId);
+      if (!tbl) return;
+      tbl.fixed = this.checked;
+      if (!this.checked) {
+        tbl.seatsFixed = false;
+        $('table-detail-fixed').checked = false;
+      }
+      updateTableDetailModalVisuals(tbl);
+      saveAndRender(); // re-renders venue SVG and grouped guest list headers
     });
 
     // Add table buttons
