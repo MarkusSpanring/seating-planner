@@ -2428,8 +2428,10 @@
       if (!tbl) return;
       var count = guestsAtTable(currentEditingTableId).length;
       if (count > 0 && !confirm('Tisch ' + tbl.number + ' entfernen? ' + count + ' Gast/Gäste werden nicht mehr zugewiesen.')) return;
+      
+      var targetId = currentEditingTableId;
       closeTableDetailModal();
-      removeTable(currentEditingTableId);
+      removeTable(targetId);
     });
     $('table-detail-seatcount').addEventListener('change', function () {
       if (!currentEditingTableId) return;
