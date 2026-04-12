@@ -580,6 +580,8 @@
 
     var svg = svgEl('svg', {
       viewBox: '0 0 ' + CANVAS_W + ' ' + CANVAS_H,
+      width: '100%',
+      height: '100%',
       class: 'venue-svg',
       xmlns: SVG_NS,
     });
@@ -926,7 +928,6 @@
     }, String(state.guests.length)));
     svg.appendChild(ageGroup);
 
-    container.appendChild(svg);
     container.appendChild(svg);
     renderPrintTablePages();
   }
