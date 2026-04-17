@@ -28,7 +28,7 @@ You can hide the Venue Panel to enter **Full Table View**, which transforms the 
 ## 💡 Key Features & How to Operate
 
 ### 1. Managing Tables
-- **Adding Tables:** Use the buttons at the top of the Venue Panel (`+ 7er Tisch`, `+ 8er Tisch`, etc.) to add tables. 
+- **Adding Tables & Table Builder:** Use the **"➕ Tisch erstellen"** button at the top of the Venue Panel to open the dynamic **Table Builder**. This powerful tool lets you choose between circular or rectangular shapes, specify exact dimensions (e.g., seats on long vs. short sides), and instantly adds the custom table to your venue.
 - **Moving Tables:** Click and drag the center area of any table in the venue diagram to position it.
 - **Table Details Modal:** Click on a table's center circle to open the details. Here you can:
   - Rename the table.
@@ -36,6 +36,7 @@ You can hide the Venue Panel to enter **Full Table View**, which transforms the 
   - Toggle **"Gäste platziert"**: Indicates the group of people assigned to the table is finalized. Turns the table's center circle green on the venue map.
   - Toggle **"Plätze fixiert"**: Indicates specific seat placements are finalized, turning individual seat borders green.
   - *Note:* These locks are physically linked. Unchecking "Gäste platziert" will automatically uncheck "Plätze fixiert" (you can't finalize seats if you don't know who is at the table!). If BOTH are checked, the entire detail modal illuminates with a bright green border, indicating the table is 100% complete!
+  - **Bearbeitungsmodus (Edit Mode):** Click the "🔧 Bearbeitungsmodus" button to enter a distraction-free layout mode. Guest names and lists are hidden, allowing you to click individual seats to **disable** them (perfect for table legs or un-usable spots, marked with a ✕). You can also use the **"↻ Drehen"** button to physically rotate rectangular tables by 90° while perfectly preserving existing seat assignments!
   - Delete the table.
 - **Table Groups (Split View):** In the split-view guest list, each table mirrors the **"Gäste platziert"** checkbox right in its header. Checking this directly from the guest list performs the same lock, turns the table's center green, and auto-collapses the group to save screen space!
 
