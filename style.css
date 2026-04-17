@@ -1531,13 +1531,16 @@ label {
 
   /* Venue SVG colour mapping for light paper print */
   .venue-svg circle,
-  .venue-svg rect {
+  .venue-svg rect,
+  .venue-svg polygon {
     stroke: #d1d5db !important;
   }
 
   /* Table centers (normal and fixed) */
   .venue-svg circle[fill="rgba(139,92,246,0.15)"],
-  .venue-svg circle[fill="rgba(34,197,94,0.12)"] {
+  .venue-svg circle[fill="rgba(34,197,94,0.12)"],
+  .venue-svg rect[fill="rgba(139,92,246,0.15)"],
+  .venue-svg rect[fill="rgba(34,197,94,0.12)"] {
     fill: #f3f4f6 !important;
     stroke: #d1d5db !important;
   }
@@ -1551,21 +1554,24 @@ label {
 
   /* Empty seats (1.5 stroke width) */
   .venue-svg circle[stroke-width="1.5"],
-  .venue-svg rect[stroke-width="1.5"] {
+  .venue-svg rect[stroke-width="1.5"],
+  .venue-svg polygon[stroke-width="1.5"] {
     fill: #fff !important;
     stroke: #d1d5db !important;
   }
 
   /* Occupied seats (no diet) */
   .venue-svg circle[stroke-width="2.5"][fill="rgba(255,255,255,0.06)"],
-  .venue-svg rect[stroke-width="2.5"][fill="rgba(255,255,255,0.06)"] {
+  .venue-svg rect[stroke-width="2.5"][fill="rgba(255,255,255,0.06)"],
+  .venue-svg polygon[stroke-width="2.5"][fill="rgba(255,255,255,0.06)"] {
     fill: #e5e7eb !important;
     stroke: #9ca3af !important;
   }
 
   /* Occupied seats (with diet) */
   .venue-svg circle[stroke-width="2.5"]:not([fill="rgba(255,255,255,0.06)"]),
-  .venue-svg rect[stroke-width="2.5"]:not([fill="rgba(255,255,255,0.06)"]) {
+  .venue-svg rect[stroke-width="2.5"]:not([fill="rgba(255,255,255,0.06)"]),
+  .venue-svg polygon[stroke-width="2.5"]:not([fill="rgba(255,255,255,0.06)"]) {
     /* Keep the original inline diet fill color but add a crisp border */
     stroke: #111 !important;
   }
@@ -1621,11 +1627,16 @@ label {
   .print-table-svg-wrap {
     flex: 0 0 auto;
     width: 560px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
   }
 
   .print-table-svg-wrap svg {
     display: block;
-    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 75vh !important;
+    width: auto !important;
     height: auto !important;
   }
 
@@ -1739,18 +1750,6 @@ label {
     print-color-adjust: exact;
   }
 
-  /* Square shape for Hochstuhl — mirrors the venue SVG rect shape */
-  .print-legend-hc-symbol {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
-    flex-shrink: 0;
-    border: 1.5px solid #9ca3af;
-    background: #e5e7eb;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
 
   .print-legend-label {
     font-size: 10px;
@@ -1779,4 +1778,93 @@ label {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+}
+
+/* ===== Edit Mode Toggle ===== */
+.edit-mode-toggle {
+  transition: all 0.2s ease;
+}
+
+.edit-mode-toggle.active {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border-color: #f59e0b !important;
+  color: #f59e0b !important;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+}
+
+.edit-mode-toggle:hover {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+/* ===== Blueprint Builder Modal ===== */
+.blueprint-builder-modal-content {
+  width: 740px;
+  max-width: 95vw;
+}
+
+.blueprint-builder-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.blueprint-builder-controls {
+  flex: 0 0 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.blueprint-builder-preview {
+  flex: 1;
+  min-height: 340px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+.bp-field label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.bp-shape-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+.bp-shape-btn {
+  flex: 1;
+  text-align: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.bp-shape-btn.active {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+}
+
+/* ===== Custom Blueprint Toolbar Buttons ===== */
+.custom-blueprint-btn {
+  background: rgba(139, 92, 246, 0.12) !important;
+  border-color: rgba(139, 92, 246, 0.3) !important;
+  color: var(--accent) !important;
+  font-weight: 600;
+}
+
+.custom-blueprint-btn:hover {
+  background: rgba(139, 92, 246, 0.25) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.2);
 }

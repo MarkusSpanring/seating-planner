@@ -46,6 +46,7 @@
     tables: [],
     families: [],
     nextTableNumber: 1,
+    customBlueprints: [],
   };
   var collapsedGroups = {};
   var expandedGuests = {}; // Track expanded state of individual guest cards main view
@@ -55,6 +56,10 @@
   var useFamilyGrouping = true; // Toggle for displaying family cards vs individual lines
   var allGroupsExpanded = false; // Track whether all groups are force-expanded
   var selectedDetailSeat = null; // Seat number selected for swap in the detail SVG
+  var detailEditMode = false; // Toggle for seat disable mode in detail modal
+  var detailZoom = 1.0; // Zoom level for the detail SVG view
+  var detailPanX = 0; // Pan X for detail SVG
+  var detailPanY = 0; // Pan Y for detail SVG
 
   // Drag state
   var dragState = null; // { tableId, offsetX, offsetY, groupEl }
@@ -76,6 +81,16 @@
           state.tables = data.tables || [];
           state.families = data.families || [];
           state.nextTableNumber = data.nextTableNumber || 1;
+          state.customBlueprints = data.customBlueprints || [];
+
+          // ── Migration: ensure new table fields exist ──
+          state.tables.forEach(function (t) {
+            t.shape = t.shape || 'circle';
+            if (t.seatsLong == null) t.seatsLong = null;
+            if (t.seatsShort == null) t.seatsShort = null;
+            delete t.width; delete t.height; // legacy cleanup
+            if (!Array.isArray(t.disabledSeats)) t.disabledSeats = [];
+          });
         }
         if (callback) callback();
       })
@@ -96,6 +111,7 @@
         tables: state.tables,
         families: state.families,
         nextTableNumber: state.nextTableNumber,
+        customBlueprints: state.customBlueprints,
       })
     }).catch(function (err) {
       console.error('Failed to save state to backend', err);
@@ -281,8 +297,23 @@
 
   function totalSeatCapacity() {
     var sum = 0;
-    for (var i = 0; i < state.tables.length; i++) sum += state.tables[i].seatCount;
+    for (var i = 0; i < state.tables.length; i++) sum += getEffectiveSeatCount(state.tables[i]);
     return sum;
+  }
+
+  // ── Effective Seat Helpers (account for disabled seats) ────────────
+  function getEffectiveSeatCount(table) {
+    var disabled = Array.isArray(table.disabledSeats) ? table.disabledSeats.length : 0;
+    return table.seatCount - disabled;
+  }
+
+  function getActiveSeatNumbers(table) {
+    var disabled = Array.isArray(table.disabledSeats) ? table.disabledSeats : [];
+    var active = [];
+    for (var i = 1; i <= table.seatCount; i++) {
+      if (disabled.indexOf(i) < 0) active.push(i);
+    }
+    return active;
   }
 
   // ── Add / Remove Table ─────────────────────────────────────────────
@@ -307,6 +338,10 @@
       seatCount: seatCount,
       x: CANVAS_W / 2 + offsetX,
       y: CANVAS_H / 2 + offsetY,
+      shape: 'circle',
+      seatsLong: null,
+      seatsShort: null,
+      disabledSeats: [],
     });
     saveAndRender();
   }
@@ -332,17 +367,31 @@
 
     // Populate seat-count selector; disable options smaller than current seated count
     var seatSel = $('table-detail-seatcount');
+    // For rectangle tables, seatCount is derived from seatsLong/seatsShort — disable dropdown
+    var isRectTable = tbl.shape === 'rectangle' && tbl.seatsLong != null;
+    seatSel.disabled = isRectTable;
+    // Ensure current seatCount is in the dropdown (blueprint tables may have non-standard counts)
+    var hasCurrentValue = false;
+    Array.prototype.forEach.call(seatSel.options, function (opt) {
+      if (parseInt(opt.value) === tbl.seatCount) hasCurrentValue = true;
+    });
+    if (!hasCurrentValue) {
+      var customOpt = document.createElement('option');
+      customOpt.value = String(tbl.seatCount);
+      customOpt.textContent = tbl.seatCount + 'er Tisch';
+      seatSel.appendChild(customOpt);
+    }
     seatSel.value = String(tbl.seatCount);
     var seatedAtTable = guestsAtTable(tableId).filter(function (g) { return g.seatNumber; }).length;
     Array.prototype.forEach.call(seatSel.options, function (opt) {
-      opt.disabled = parseInt(opt.value) < seatedAtTable;
+      opt.disabled = isRectTable || parseInt(opt.value) < seatedAtTable;
     });
 
     $('table-detail-table-fixed').checked = !!tbl.fixed;
     $('table-detail-fixed').checked = !!tbl.seatsFixed;
     updateTableDetailModalVisuals(tbl);
 
-    renderTableDetailSVG(tbl.id);
+    zoomFit(tbl.id);
     renderTableDetailGuests(tbl.id);
 
     $('table-detail-modal').style.display = 'flex';
@@ -385,6 +434,321 @@
     $('table-detail-modal').style.display = 'none';
     currentEditingTableId = null;
     selectedDetailSeat = null; // clear any pending swap selection
+    detailEditMode = false;
+    zoomFit(currentEditingTableId);
+    var emBtn = $('btn-edit-mode');
+    if (emBtn) emBtn.classList.remove('active');
+    var rotBtn = $('btn-rotate-table');
+    if (rotBtn) rotBtn.style.display = 'none';
+    // Remove any custom seatcount options added for blueprint tables
+    var seatSel = $('table-detail-seatcount');
+    var standardVals = ['7', '8', '10'];
+    Array.prototype.slice.call(seatSel.options).forEach(function (opt) {
+      if (standardVals.indexOf(opt.value) < 0) seatSel.removeChild(opt);
+    });
+  }
+
+  // ── Detail Modal Edit Mode ──────────────────────────────────────────
+  function updateZoomDisplay() {
+    var el = $('zoom-level');
+    if (el) el.textContent = Math.round(detailZoom * 100) + '%';
+  }
+
+  function zoomFit(tableId) {
+    if (!tableId) return;
+    var tbl = getTable(tableId);
+    if (!tbl) return;
+    var seatR = 44;
+    var geo = getTableCenterSize(tbl, seatR);
+    var maxExtent = (geo.type === 'rect') ? Math.max(geo.w/2, geo.h/2) + seatR*2 : geo.r + seatR*2;
+    detailZoom = Math.min(1.0, 190 / maxExtent);
+    detailPanX = 0;
+    detailPanY = 0;
+    updateZoomDisplay();
+    renderTableDetailSVG(tableId);
+  }
+
+  function toggleEditMode() {
+    detailEditMode = !detailEditMode;
+    selectedDetailSeat = null; // clear any pending swap
+    var emBtn = $('btn-edit-mode');
+    var rotBtn = $('btn-rotate-table');
+    if (emBtn) {
+      if (detailEditMode) {
+        emBtn.classList.add('active');
+        if (currentEditingTableId) {
+          var tbl = getTable(currentEditingTableId);
+          if (tbl && tbl.shape === 'rectangle' && tbl.seatsLong != null) {
+            if (rotBtn) rotBtn.style.display = 'inline-flex';
+          }
+        }
+      } else {
+        emBtn.classList.remove('active');
+        if (rotBtn) rotBtn.style.display = 'none';
+      }
+    }
+    if (currentEditingTableId) {
+      renderTableDetailSVG(currentEditingTableId);
+    }
+  }
+
+  // ── Blueprint Builder ───────────────────────────────────────────────
+  var bpPreviewDisabledSeats = []; // transient state for the builder preview
+
+  function openBlueprintBuilder() {
+    bpPreviewDisabledSeats = [];
+    $('bp-name').value = '';
+    $('bp-seat-count').value = '8';
+    $('bp-seats-long').value = '3';
+    $('bp-seats-short').value = '1';
+    // Reset shape toggle
+    $('bp-shape-circle').classList.add('active');
+    $('bp-shape-rect').classList.remove('active');
+    $('bp-rect-fields').style.display = 'none';
+    $('bp-circle-fields').style.display = '';
+    renderBlueprintPreview();
+    renderBlueprintExistingList();
+    $('blueprint-builder-modal').style.display = 'flex';
+  }
+
+  function closeBlueprintBuilder() {
+    $('blueprint-builder-modal').style.display = 'none';
+    bpPreviewDisabledSeats = [];
+  }
+
+  function getBpShape() {
+    return $('bp-shape-rect').classList.contains('active') ? 'rectangle' : 'circle';
+  }
+
+  function renderBlueprintPreview() {
+    var container = $('bp-preview');
+    container.innerHTML = '';
+    var shape = getBpShape();
+    var seatR = 30;
+    var count, seatsLong, seatsShort;
+
+    if (shape === 'rectangle') {
+      seatsLong = parseInt($('bp-seats-long').value) || 3;
+      seatsShort = parseInt($('bp-seats-short').value) || 1;
+      count = 2 * (seatsLong + seatsShort);
+      var totalEl = $('bp-total-display');
+      if (totalEl) totalEl.textContent = String(count);
+    } else {
+      count = parseInt($('bp-seat-count').value) || 8;
+      seatsLong = null;
+      seatsShort = null;
+    }
+
+    // Build a fake table object for getTableCenterSize
+    var fakeTable = { seatCount: count, shape: shape, seatsLong: seatsLong, seatsShort: seatsShort };
+    var geo = getTableCenterSize(fakeTable, seatR);
+
+    // Compute SVG size to fit everything
+    var maxExtent;
+    if (geo.type === 'rect') {
+      maxExtent = Math.max(geo.w / 2, geo.h / 2) + seatR + 5 + seatR + 10;
+    } else {
+      maxExtent = computeCircleOrbit(count, seatR) + seatR + 10;
+    }
+    var svgSize = Math.max(300, maxExtent * 2);
+    var svg = svgEl('svg', {
+      viewBox: '0 0 ' + svgSize + ' ' + svgSize,
+      width: '100%',
+      xmlns: SVG_NS,
+    });
+    var g = svgEl('g', {
+      transform: 'translate(' + (svgSize / 2) + ',' + (svgSize / 2) + ')'
+    });
+
+    // Table center
+    if (geo.type === 'rect') {
+      g.appendChild(svgEl('rect', {
+        x: -geo.w / 2, y: -geo.h / 2, width: geo.w, height: geo.h,
+        fill: '#4b5563', stroke: '#6b7280', 'stroke-width': 2.5, rx: 6,
+      }));
+    } else {
+      g.appendChild(svgEl('circle', {
+        cx: 0, cy: 0, r: geo.r,
+        fill: '#4b5563', stroke: '#6b7280', 'stroke-width': 2.5,
+      }));
+    }
+
+    var seats = getSeatPositions(count, seatR, shape, seatsLong, seatsShort);
+    seats.forEach(function (seat) {
+      var isDisabled = bpPreviewDisabledSeats.indexOf(seat.number) >= 0;
+      var fillColor = isDisabled ? 'rgba(255,255,255,0.04)' : '#ffffff';
+      var strokeColor = isDisabled ? 'rgba(255,255,255,0.2)' : '#d1d5db';
+
+      var shapeEl;
+      var sqR = seatR * 0.925; // slightly smaller square
+      if (isDisabled) {
+        shapeEl = svgEl('rect', {
+          x: seat.x - sqR, y: seat.y - sqR, width: sqR*2, height: sqR*2,
+          fill: fillColor, stroke: strokeColor, 'stroke-width': 1.5, rx: 4
+        });
+        shapeEl.setAttribute('stroke-dasharray', '5 3');
+        shapeEl.style.opacity = '0.5';
+      } else {
+        shapeEl = svgEl('rect', {
+          x: seat.x - sqR, y: seat.y - sqR, width: sqR*2, height: sqR*2,
+          fill: fillColor, stroke: strokeColor, 'stroke-width': 2, rx: 4
+        });
+      }
+      shapeEl.style.cursor = 'pointer';
+      g.appendChild(shapeEl);
+
+      // Click to toggle disabled in preview
+      (function (seatNum) {
+        shapeEl.addEventListener('click', function () {
+          var idx = bpPreviewDisabledSeats.indexOf(seatNum);
+          if (idx >= 0) {
+            bpPreviewDisabledSeats.splice(idx, 1);
+          } else {
+            bpPreviewDisabledSeats.push(seatNum);
+          }
+          renderBlueprintPreview();
+        });
+      }(seat.number));
+
+      // Seat number
+      g.appendChild(svgEl('text', {
+        x: seat.x, y: seat.y,
+        fill: isDisabled ? 'rgba(255,255,255,0.3)' : '#9ca3af',
+        'font-size': '12px', 'font-weight': 700,
+        'font-family': "'Inter',sans-serif", 'text-anchor': 'middle',
+        'dominant-baseline': 'central',
+        style: 'pointer-events: none;'
+      }, String(seat.number)));
+
+      if (isDisabled) {
+        g.appendChild(svgEl('text', {
+          x: seat.x, y: seat.y + 2,
+          fill: 'rgba(255,255,255,0.25)', 'font-size': '18px', 'font-weight': 700,
+          'font-family': "'Inter',sans-serif", 'text-anchor': 'middle',
+          'dominant-baseline': 'central',
+          style: 'pointer-events: none;'
+        }, '✕'));
+      }
+    });
+
+    // Show total seat count
+    g.appendChild(svgEl('text', {
+      x: 0, y: 0,
+      fill: '#f3f4f6', 'font-size': '16px', 'font-weight': 700,
+      'font-family': "'Inter',sans-serif", 'text-anchor': 'middle',
+      'dominant-baseline': 'central',
+    }, count + ' Pl.'));
+
+    svg.appendChild(g);
+    container.appendChild(svg);
+  }
+
+  function saveBlueprint() {
+    var name = $('bp-name').value.trim();
+    if (!name) { $('bp-name').focus(); return; }
+    var shape = getBpShape();
+    var seatsLong, seatsShort, count;
+    if (shape === 'rectangle') {
+      seatsLong = parseInt($('bp-seats-long').value) || 3;
+      seatsShort = parseInt($('bp-seats-short').value) || 1;
+      count = 2 * (seatsLong + seatsShort);
+    } else {
+      count = parseInt($('bp-seat-count').value) || 8;
+      seatsLong = null;
+      seatsShort = null;
+    }
+
+    var bp = {
+      id: 'bp-' + Date.now(),
+      name: name,
+      shape: shape,
+      seatsLong: seatsLong,
+      seatsShort: seatsShort,
+      seatCount: count,
+      disabledSeats: bpPreviewDisabledSeats.slice(),
+    };
+    state.customBlueprints.push(bp);
+    saveState();
+    renderBlueprintButtons();
+    closeBlueprintBuilder();
+  }
+
+  function addTableFromBlueprint(bp) {
+    var used = {};
+    state.tables.forEach(function (t) {
+      if (String(t.number).trim() !== '' && !isNaN(t.number)) {
+        used[Number(t.number)] = true;
+      }
+    });
+    var num = 1;
+    while (used[num]) num++;
+
+    var offsetX = (Math.random() - 0.5) * 100;
+    var offsetY = (Math.random() - 0.5) * 100;
+    state.tables.push({
+      id: Date.now(),
+      number: num,
+      seatCount: bp.seatCount,
+      x: CANVAS_W / 2 + offsetX,
+      y: CANVAS_H / 2 + offsetY,
+      shape: bp.shape,
+      seatsLong: bp.seatsLong,
+      seatsShort: bp.seatsShort,
+      disabledSeats: bp.disabledSeats.slice(),
+    });
+    saveAndRender();
+  }
+
+  function renderBlueprintButtons() {
+    var container = $('custom-blueprint-buttons');
+    if (!container) return;
+    container.innerHTML = '';
+    state.customBlueprints.forEach(function (bp) {
+      var btn = document.createElement('button');
+      btn.className = 'btn btn-accent btn-sm custom-blueprint-btn';
+      btn.textContent = '+ ' + bp.name;
+      btn.title = bp.shape + ' · ' + bp.seatCount + ' Plätze';
+      btn.addEventListener('click', function () {
+        addTableFromBlueprint(bp);
+      });
+      container.appendChild(btn);
+    });
+  }
+
+  function renderBlueprintExistingList() {
+    var container = $('bp-existing-list');
+    if (!container) return;
+    container.innerHTML = '';
+    if (state.customBlueprints.length === 0) return;
+
+    var title = document.createElement('div');
+    title.style.cssText = 'font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;';
+    title.textContent = 'Vorhandene Vorlagen';
+    container.appendChild(title);
+
+    state.customBlueprints.forEach(function (bp) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color);';
+      var label = document.createElement('span');
+      label.style.cssText = 'font-size: 0.85rem; color: var(--text-primary);';
+      label.textContent = bp.name + ' (' + bp.shape + ', ' + bp.seatCount + ' Plätze)';
+      row.appendChild(label);
+
+      var delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-sm';
+      delBtn.style.cssText = 'color: #ef4444; font-size: 0.75rem; padding: 2px 8px;';
+      delBtn.textContent = '✕';
+      delBtn.title = 'Vorlage löschen';
+      delBtn.addEventListener('click', function () {
+        if (!confirm('Vorlage "' + bp.name + '" löschen? Bereits erstellte Tische bleiben erhalten.')) return;
+        state.customBlueprints = state.customBlueprints.filter(function (b) { return b.id !== bp.id; });
+        saveState();
+        renderBlueprintButtons();
+        renderBlueprintExistingList();
+      });
+      row.appendChild(delBtn);
+      container.appendChild(row);
+    });
   }
 
   function renderTableDetailGuests(tableId) {
@@ -428,111 +792,181 @@
     container.innerHTML = '';
     if (!tbl) return;
 
-    var svgW = 400;
-    var svgH = 400;
+    var isRect = tbl.shape === 'rectangle' && tbl.seatsLong != null;
+    var disabled = Array.isArray(tbl.disabledSeats) ? tbl.disabledSeats : [];
+
+    // Apply zoom by expanding the SVG viewBox. 
+    // detailZoom < 1 means we see MORE of the table (zoomed out).
+    var viewSize = 400 / detailZoom;
     var svg = svgEl('svg', {
-      viewBox: '0 0 ' + svgW + ' ' + svgH,
+      viewBox: (-detailPanX) + ' ' + (-detailPanY) + ' ' + viewSize + ' ' + viewSize,
       width: '100%',
       xmlns: SVG_NS,
     });
 
     var g = svgEl('g', {
-      transform: 'translate(' + (svgW / 2) + ',' + (svgH / 2) + ')'
+      transform: 'translate(' + (viewSize / 2) + ',' + (viewSize / 2) + ')'
     });
 
-    var tableR = tbl.seatCount > 8 ? 95 : 85;
     var seatR = 44;
+    var geo = getTableCenterSize(tbl, seatR);
 
-    // Table center
-    var center = svgEl('circle', {
-      cx: 0, cy: 0, r: tableR,
-      fill: '#4b5563', stroke: '#6b7280',
-      'stroke-width': 3,
-    });
-    g.appendChild(center);
+    // Table center — auto-sized circle or rectangle
+    if (geo.type === 'rect') {
+      g.appendChild(svgEl('rect', {
+        x: -geo.w / 2, y: -geo.h / 2, width: geo.w, height: geo.h,
+        fill: '#4b5563', stroke: '#6b7280',
+        'stroke-width': 3, rx: 8,
+      }));
+    } else {
+      g.appendChild(svgEl('circle', {
+        cx: 0, cy: 0, r: geo.r,
+        fill: '#4b5563', stroke: '#6b7280',
+        'stroke-width': 3,
+      }));
+    }
+
+    var tableName = tbl.name || ('Tisch ' + tbl.number);
+    var containerWidth = geo.type === 'rect' ? geo.w : geo.r * 2;
+    var fontSize = getAdjustedFontSize(tableName, containerWidth, 22);
 
     g.appendChild(svgEl('text', {
       x: 0, y: 0,
-      fill: '#f3f4f6', 'font-size': '22px', 'font-weight': 700,
+      fill: '#f3f4f6', 'font-size': fontSize + 'px', 'font-weight': 700,
       'font-family': "'Inter',sans-serif", 'text-anchor': 'middle',
       'dominant-baseline': 'central'
-    }, 'Table ' + tbl.number));
+    }, tableName));
 
-    var seats = getSeatPositions(tbl.seatCount, tableR, seatR);
+    var seats = getSeatPositions(tbl.seatCount, seatR, tbl.shape, tbl.seatsLong, tbl.seatsShort);
     seats.forEach(function (seat) {
-      var guest = guestAtSeat(tbl.id, seat.number);
+      var isDisabled = disabled.indexOf(seat.number) >= 0;
+
+      // In normal mode: skip disabled seats entirely
+      // In edit mode: render disabled seats as ghosts
+      if (isDisabled && !detailEditMode) return;
+
+      var guest = isDisabled ? null : guestAtSeat(tbl.id, seat.number);
       var diet = guest ? getDiet(guest.dietId) : null;
-      var fillColor = (diet && diet.id !== 'none') ? diet.color : (guest ? '#e5e7eb' : '#ffffff');
-      var strokeColor = guest ? '#9ca3af' : '#d1d5db';
+      var fillColor, strokeColor;
+
+      if (isDisabled) {
+        // Ghost seat styling
+        fillColor = 'rgba(255,255,255,0.04)';
+        strokeColor = 'rgba(255,255,255,0.2)';
+      } else {
+        fillColor = (diet && diet.id !== 'none') ? diet.color : (guest ? '#e5e7eb' : '#ffffff');
+        strokeColor = guest ? '#9ca3af' : '#d1d5db';
+      }
 
       var shapeEl;
-      var hcR = seatR * 0.85;
-      if (guest && guest.needsHighChair) {
-        shapeEl = svgEl('rect', {
-          x: seat.x - hcR, y: seat.y - hcR,
-          width: hcR * 2, height: hcR * 2,
+      if (!isDisabled && guest && guest.needsHighChair) {
+        shapeEl = svgEl('polygon', {
+          points: getTrapezoidPoints(seat.x, seat.y, seatR),
           fill: fillColor,
           stroke: strokeColor, 'stroke-width': 2.5,
-          rx: 4
+          'stroke-linejoin': 'round',
+          transform: 'rotate(' + seat.angleDeg + ',' + seat.x + ',' + seat.y + ')'
         });
       } else {
-        shapeEl = svgEl('circle', {
-          cx: seat.x, cy: seat.y, r: seatR,
+        var sqR = seatR * 0.925;
+        shapeEl = svgEl('rect', {
+          x: seat.x - sqR, y: seat.y - sqR, width: sqR*2, height: sqR*2,
           fill: fillColor,
-          stroke: strokeColor, 'stroke-width': guest ? 2.5 : 1.5,
+          stroke: strokeColor, 'stroke-width': (isDisabled ? 1.5 : (guest ? 2.5 : 1.5)),
+          rx: 4
         });
       }
-      // Highlight selected seat for swap
-      var isSelected = (selectedDetailSeat === seat.number);
-      if (isSelected) {
-        shapeEl.setAttribute('stroke', '#f59e0b');
-        shapeEl.setAttribute('stroke-width', '3.5');
-        shapeEl.style.filter = 'drop-shadow(0 0 6px rgba(245,158,11,0.7))';
+
+      // Ghost seat dashed styling
+      if (isDisabled) {
+        shapeEl.setAttribute('stroke-dasharray', '6 4');
+        shapeEl.style.opacity = '0.5';
+      }
+
+      // Highlight selected seat for swap (normal mode only)
+      if (!detailEditMode) {
+        var isSelected = (selectedDetailSeat === seat.number);
+        if (isSelected) {
+          shapeEl.setAttribute('stroke', '#f59e0b');
+          shapeEl.setAttribute('stroke-width', '3.5');
+          shapeEl.style.filter = 'drop-shadow(0 0 6px rgba(245,158,11,0.7))';
+        }
       }
       shapeEl.style.cursor = 'pointer';
       g.appendChild(shapeEl);
 
-      // Click handler: select / deselect / swap
+      // Click handler: edit mode = toggle disable; normal mode = select/swap
       (function (seatNum) {
         shapeEl.addEventListener('click', function () {
-          if (selectedDetailSeat === null) {
-            // Select this seat
-            selectedDetailSeat = seatNum;
-            renderTableDetailSVG(currentEditingTableId);
-          } else if (selectedDetailSeat === seatNum) {
-            // Deselect
-            selectedDetailSeat = null;
-            renderTableDetailSVG(currentEditingTableId);
-          } else {
-            // Swap guests between selectedDetailSeat and seatNum
-            var tblId = currentEditingTableId;
-            var gA = guestAtSeat(tblId, selectedDetailSeat);
-            var gB = guestAtSeat(tblId, seatNum);
-            var tmpSeat = selectedDetailSeat;
-            if (gA) gA.seatNumber = seatNum;
-            if (gB) gB.seatNumber = tmpSeat;
-            selectedDetailSeat = null;
+          if (detailEditMode) {
+            // Toggle seat disable
+            var tblRef = getTable(currentEditingTableId);
+            if (!tblRef) return;
+            if (!Array.isArray(tblRef.disabledSeats)) tblRef.disabledSeats = [];
+            var idx = tblRef.disabledSeats.indexOf(seatNum);
+            if (idx >= 0) {
+              // Re-enable seat
+              tblRef.disabledSeats.splice(idx, 1);
+            } else {
+              // Disable seat — check for seated guest first
+              var occupant = guestAtSeat(tblRef.id, seatNum);
+              if (occupant) {
+                if (!confirm('Platz ' + seatNum + ' ist belegt von ' + (occupant.firstName || '') + ' ' + (occupant.lastName || '') + '. Gast wird nicht mehr zugewiesen. Fortfahren?')) return;
+                occupant.tableId = null;
+                occupant.seatNumber = null;
+              }
+              tblRef.disabledSeats.push(seatNum);
+            }
             saveAndRender();
-            renderTableDetailSVG(tblId);
-            renderTableDetailGuests(tblId);
+            renderTableDetailSVG(currentEditingTableId);
+            renderTableDetailGuests(currentEditingTableId);
+          } else {
+            // Normal swap mode
+            if (selectedDetailSeat === null) {
+              selectedDetailSeat = seatNum;
+              renderTableDetailSVG(currentEditingTableId);
+            } else if (selectedDetailSeat === seatNum) {
+              selectedDetailSeat = null;
+              renderTableDetailSVG(currentEditingTableId);
+            } else {
+              var tblId = currentEditingTableId;
+              var gA = guestAtSeat(tblId, selectedDetailSeat);
+              var gB = guestAtSeat(tblId, seatNum);
+              var tmpSeat = selectedDetailSeat;
+              if (gA) gA.seatNumber = seatNum;
+              if (gB) gB.seatNumber = tmpSeat;
+              selectedDetailSeat = null;
+              saveAndRender();
+              renderTableDetailSVG(tblId);
+              renderTableDetailGuests(tblId);
+            }
           }
         });
       }(seat.number));
 
       var hasDiet = guest ? (diet && diet.id !== 'none') : false;
-      var textColor = hasDiet ? '#ffffff' : '#374151';
+      var textColor = isDisabled ? 'rgba(255,255,255,0.3)' : (hasDiet ? '#ffffff' : '#374151');
 
       // Always render seat number (small, offset above name when occupied)
       g.appendChild(svgEl('text', {
         x: seat.x, y: seat.y - (guest ? seatR * 0.52 : 0),
-        fill: guest ? (hasDiet ? 'rgba(255,255,255,0.75)' : '#6b7280') : '#9ca3af',
+        fill: isDisabled ? 'rgba(255,255,255,0.3)' : (guest ? (hasDiet ? 'rgba(255,255,255,0.75)' : '#6b7280') : '#9ca3af'),
         'font-size': '13px', 'font-weight': 700,
         'font-family': "'Inter',sans-serif", 'text-anchor': 'middle',
         'dominant-baseline': 'central',
         style: 'pointer-events: none;'
       }, String(seat.number)));
 
-      if (guest) {
+      if (isDisabled) {
+        // Show "✕" on disabled ghost seats
+        g.appendChild(svgEl('text', {
+          x: seat.x, y: seat.y + 4,
+          fill: 'rgba(255,255,255,0.25)', 'font-size': '24px', 'font-weight': 700,
+          'font-family': "'Inter',sans-serif", 'text-anchor': 'middle',
+          'dominant-baseline': 'central',
+          style: 'pointer-events: none;'
+        }, '✕'));
+      } else if (guest) {
         var names = guest.firstName.split(' ');
         if (guest.lastName) names.push(guest.lastName);
 
@@ -573,16 +1007,113 @@
     return el;
   }
 
-  function getSeatPositions(count, tableR, seatR) {
+  function getTrapezoidPoints(x, y, r) {
+    var topW = r * 1.18; // narrower top
+    var botW = r * 1.82; // wider bottom
+    var h = r * 1.72;
+    var topY = y - h/2;
+    var botY = y + h/2;
+    return [
+      (x - topW/2) + ',' + topY,
+      (x + topW/2) + ',' + topY,
+      (x + botW/2) + ',' + botY,
+      (x - botW/2) + ',' + botY
+    ].join(' ');
+  }
+
+  // ── Auto-sizing Geometry ─────────────────────────────────────────
+  function getAdjustedFontSize(text, containerWidth, baseSize) {
+    // Approximate text width: 1 character is roughly 0.6 * fontSize
+    var approxWidth = text.length * baseSize * 0.6;
+    if (approxWidth > containerWidth - 10) {
+      return Math.max(8, Math.floor((containerWidth - 10) / (text.length * 0.6)));
+    }
+    return baseSize;
+  }
+
+  // Tables auto-size based on seat count so seats never overlap.
+  // Circular: orbit radius grows with seat count.
+  // Rectangle: side lengths grow with per-side seat counts.
+
+  var SEAT_GAP = 12; // increased for more breathing room between seats
+
+  function computeCircleOrbit(seatCount, seatR) {
+    // Minimum orbit so adjacent seats don't overlap
+    var needed = seatCount * (2 * seatR + SEAT_GAP) / (2 * Math.PI);
+    var minOrbit = seatR * 1.5 + seatR + 15; // increased margin to table center
+    return Math.max(needed, minOrbit);
+  }
+
+  function computeCircleTableR(seatCount, seatR) {
+    return computeCircleOrbit(seatCount, seatR) - seatR - 15; // increased margin
+  }
+
+  function computeRectSize(seatsLong, seatsShort, seatR) {
+    var slot = 2 * seatR + SEAT_GAP;
+    // ensure inner table is large enough even for 1 seat
+    var w = Math.max(seatR * 3.5, (seatsLong || 1) * slot);
+    var h = Math.max(seatR * 3.5, (seatsShort || 1) * slot);
+    return { w: w, h: h };
+  }
+
+  function getTableCenterSize(table, seatR) {
+    if (table.shape === 'rectangle' && table.seatsLong != null) {
+      var dims = computeRectSize(table.seatsLong, table.seatsShort, seatR);
+      return { type: 'rect', w: dims.w, h: dims.h };
+    }
+    var tableR = computeCircleTableR(table.seatCount, seatR);
+    return { type: 'circle', r: tableR };
+  }
+
+  function getSeatPositions(seatCount, seatR, shape, seatsLong, seatsShort) {
+    if (shape === 'rectangle' && seatsLong != null) {
+      return getRectSeatPositions(seatsLong, seatsShort || 0, seatR);
+    }
+    // Circular layout — auto-sized orbit
+    var orbit = computeCircleOrbit(seatCount, seatR);
     var positions = [];
-    var orbit = tableR + seatR + 5;
-    for (var i = 0; i < count; i++) {
-      var angle = (2 * Math.PI * i) / count - Math.PI / 2;
+    for (var i = 0; i < seatCount; i++) {
+      var angle = (2 * Math.PI * i) / seatCount - Math.PI / 2;
+      var angleDeg = angle * 180 / Math.PI + 90;
       positions.push({
         x: orbit * Math.cos(angle),
         y: orbit * Math.sin(angle),
         number: i + 1,
+        angleDeg: angleDeg
       });
+    }
+    return positions;
+  }
+
+  // ── Rectangle Seat Distribution ───────────────────────────────────
+  function getRectSeatPositions(seatsLong, seatsShort, seatR) {
+    var dims = computeRectSize(seatsLong, seatsShort, seatR);
+    var halfW = dims.w / 2;
+    var halfH = dims.h / 2;
+    var pad = seatR + 15; // increased margin
+
+    var positions = [];
+    var seatNum = 1;
+
+    // Top edge: seatsLong seats, left to right
+    for (var i = 0; i < seatsLong; i++) {
+      var t = seatsLong === 1 ? 0.5 : (i + 0.5) / seatsLong;
+      positions.push({ x: -halfW + t * dims.w, y: -(halfH + pad), number: seatNum++, angleDeg: 0 });
+    }
+    // Right edge: seatsShort seats, top to bottom
+    for (var i = 0; i < seatsShort; i++) {
+      var t = seatsShort === 1 ? 0.5 : (i + 0.5) / seatsShort;
+      positions.push({ x: halfW + pad, y: -halfH + t * dims.h, number: seatNum++, angleDeg: 90 });
+    }
+    // Bottom edge: seatsLong seats, right to left
+    for (var i = 0; i < seatsLong; i++) {
+      var t = seatsLong === 1 ? 0.5 : (i + 0.5) / seatsLong;
+      positions.push({ x: halfW - t * dims.w, y: halfH + pad, number: seatNum++, angleDeg: 180 });
+    }
+    // Left edge: seatsShort seats, bottom to top
+    for (var i = 0; i < seatsShort; i++) {
+      var t = seatsShort === 1 ? 0.5 : (i + 0.5) / seatsShort;
+      positions.push({ x: -(halfW + pad), y: halfH - t * dims.h, number: seatNum++, angleDeg: 270 });
     }
     return positions;
   }
@@ -648,8 +1179,9 @@
 
     // Render each table as a draggable group
     state.tables.forEach(function (table) {
-      var tableR = table.seatCount > 8 ? 36 : 30;
       var seatR = 12;
+      var geo = getTableCenterSize(table, seatR);
+      var disabled = Array.isArray(table.disabledSeats) ? table.disabledSeats : [];
 
       var group = svgEl('g', {
         transform: 'translate(' + table.x + ',' + table.y + ')',
@@ -657,13 +1189,24 @@
         'data-table-id': table.id,
       });
 
-      // Table center circle
-      var center = svgEl('circle', {
-        cx: 0, cy: 0, r: tableR,
-        fill: table.fixed ? 'rgba(34,197,94,0.12)' : 'rgba(139,92,246,0.15)',
-        stroke: table.fixed ? '#22c55e' : 'rgba(139,92,246,0.35)',
-        'stroke-width': table.fixed ? 2.5 : 2,
-      });
+      // Table center — auto-sized circle or rectangle
+      var center;
+      if (geo.type === 'rect') {
+        center = svgEl('rect', {
+          x: -geo.w / 2, y: -geo.h / 2, width: geo.w, height: geo.h,
+          fill: table.fixed ? 'rgba(34,197,94,0.12)' : 'rgba(139,92,246,0.15)',
+          stroke: table.fixed ? '#22c55e' : 'rgba(139,92,246,0.35)',
+          'stroke-width': table.fixed ? 2.5 : 2,
+          rx: 6,
+        });
+      } else {
+        center = svgEl('circle', {
+          cx: 0, cy: 0, r: geo.r,
+          fill: table.fixed ? 'rgba(34,197,94,0.12)' : 'rgba(139,92,246,0.15)',
+          stroke: table.fixed ? '#22c55e' : 'rgba(139,92,246,0.35)',
+          'stroke-width': table.fixed ? 2.5 : 2,
+        });
+      }
       group.appendChild(center);
       center.addEventListener('mouseenter', function (e) {
         if (dragState) return;
@@ -673,19 +1216,25 @@
         hideTooltip();
       });
 
-      // Table number
+      // Table number / name
+      var tableName = table.name || String(table.number);
+      var containerWidth = geo.type === 'rect' ? geo.w : geo.r * 2;
+      var fontSize = getAdjustedFontSize(tableName, containerWidth, 15);
+
       var textEl = svgEl('text', {
         x: 0, y: 0,
-        fill: '#e8eaed', 'font-size': '15px', 'font-weight': 700,
+        fill: '#e8eaed', 'font-size': fontSize + 'px', 'font-weight': 700,
         'font-family': "'Inter',sans-serif", 'text-anchor': 'middle',
         'dominant-baseline': 'central', style: 'pointer-events:none;',
-      }, String(table.number));
+      }, tableName);
 
       group.appendChild(textEl);
 
       // Seats
-      var seats = getSeatPositions(table.seatCount, tableR, seatR);
+      var seats = getSeatPositions(table.seatCount, seatR, table.shape, table.seatsLong, table.seatsShort);
       seats.forEach(function (seat) {
+        // Skip disabled seats in venue view
+        if (disabled.indexOf(seat.number) >= 0) return;
         var guest = guestAtSeat(table.id, seat.number);
         var diet = guest ? getDiet(guest.dietId) : null;
         var fillColor = (diet && diet.id !== 'none') ? diet.color : 'rgba(255,255,255,0.06)';
@@ -693,25 +1242,26 @@
         var strokeColor = table.seatsFixed
           ? (guest ? '#22c55e' : 'rgba(34,197,94,0.3)')
           : (guest ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.15)');
-        var strokeWidth = 2.5;
+        var strokeWidth = guest ? 2.5 : 1.5;
 
         var shapeEl;
-        var hcR = seatR * 0.85;
         if (guest && guest.needsHighChair) {
-          shapeEl = svgEl('rect', {
-            x: seat.x - hcR, y: seat.y - hcR,
-            width: hcR * 2, height: hcR * 2,
+          shapeEl = svgEl('polygon', {
+            points: getTrapezoidPoints(seat.x, seat.y, seatR),
             fill: fillColor,
             stroke: strokeColor, 'stroke-width': strokeWidth,
-            rx: 3,
+            'stroke-linejoin': 'round',
+            transform: 'rotate(' + seat.angleDeg + ',' + seat.x + ',' + seat.y + ')',
             style: 'cursor:pointer;transition:all 0.2s ease;',
             'data-seat': seat.number,
           });
         } else {
-          shapeEl = svgEl('circle', {
-            cx: seat.x, cy: seat.y, r: seatR,
+          var sqR = seatR * 0.925;
+          shapeEl = svgEl('rect', {
+            x: seat.x - sqR, y: seat.y - sqR, width: sqR*2, height: sqR*2,
             fill: fillColor,
             stroke: strokeColor, 'stroke-width': strokeWidth,
+            rx: 2,
             style: 'cursor:pointer;transition:all 0.2s ease;',
             'data-seat': seat.number,
           });
@@ -869,10 +1419,11 @@
       fill: 'rgba(255,255,255,0.5)', 'font-size': '11px', 'font-weight': 600,
       'font-family': "'Inter',sans-serif", 'text-anchor': 'middle'
     }, 'SITZTYPEN'));
-    // Circle = regular seat
-    shapeGroup.appendChild(svgEl('circle', {
-      cx: slX + 20, cy: slY + 36, r: 5,
-      fill: 'rgba(255,255,255,0.06)', stroke: 'rgba(255,255,255,0.4)', 'stroke-width': 1.5
+    // rect = regular seat
+    var lgSqR = 4.5;
+    shapeGroup.appendChild(svgEl('rect', {
+      x: slX + 20 - lgSqR, y: slY + 36 - lgSqR, width: lgSqR*2, height: lgSqR*2,
+      fill: 'rgba(255,255,255,0.06)', stroke: 'rgba(255,255,255,0.4)', 'stroke-width': 2.5, rx: 1
     }));
     shapeGroup.appendChild(svgEl('text', {
       x: slX + 34, y: slY + 36,
@@ -880,9 +1431,9 @@
       'font-family': "'Inter',sans-serif", 'dominant-baseline': 'central', 'text-anchor': 'start'
     }, 'Normaler Platz'));
     if (hasHighChair) {
-      shapeGroup.appendChild(svgEl('rect', {
-        x: slX + 15, y: slY + 52, width: 10, height: 10,
-        fill: 'rgba(255,255,255,0.06)', stroke: 'rgba(255,255,255,0.4)', 'stroke-width': 1.5, rx: 2
+      shapeGroup.appendChild(svgEl('polygon', {
+        points: getTrapezoidPoints(slX + 20, slY + 58, 5),
+        fill: 'rgba(255,255,255,0.06)', stroke: 'rgba(255,255,255,0.4)', 'stroke-width': 2.5, 'stroke-linejoin': 'round'
       }));
       shapeGroup.appendChild(svgEl('text', {
         x: slX + 34, y: slY + 58,
@@ -971,201 +1522,291 @@
         .filter(function (g) { return g.seatNumber; })
         .sort(function (a, b) { return a.seatNumber - b.seatNumber; });
 
-      // Page wrapper — each gets its own printed page
-      var page = document.createElement('div');
-      page.className = 'print-table-page';
+      var tiles = buildTableSVGForPrint(table);
 
-      // ── Header ──────────────────────────────────────────────────
-      var heading = document.createElement('h1');
-      heading.className = 'print-table-heading';
-      heading.textContent = 'Tisch ' + table.number;
-      page.appendChild(heading);
+      tiles.forEach(function(tileObj, index) {
+        // Page wrapper — each tile gets its own printed page
+        var page = document.createElement('div');
+        page.className = 'print-table-page';
 
-      // ── Layout: SVG left, list right ────────────────────────────
-      var layout = document.createElement('div');
-      layout.className = 'print-table-layout';
+        // ── Header ──────────────────────────────────────────────────
+        var heading = document.createElement('h1');
+        heading.className = 'print-table-heading';
+        heading.textContent = 'Tisch ' + table.number + tileObj.tileStr;
+        page.appendChild(heading);
 
-      // SVG
-      var svgWrap = document.createElement('div');
-      svgWrap.className = 'print-table-svg-wrap';
-      svgWrap.appendChild(buildTableSVGForPrint(table));
-      layout.appendChild(svgWrap);
+        // ── Layout: SVG left, list right ────────────────────────────
+        var layout = document.createElement('div');
+        layout.className = 'print-table-layout';
 
-      // Guest list
-      var listWrap = document.createElement('div');
-      listWrap.className = 'print-table-list-wrap';
+        // SVG
+        var svgWrap = document.createElement('div');
+        svgWrap.className = 'print-table-svg-wrap';
+        svgWrap.appendChild(tileObj.node);
+        layout.appendChild(svgWrap);
 
-      var listTitle = document.createElement('h2');
-      listTitle.className = 'print-table-list-title';
-      listTitle.textContent = 'Gäste';
-      listWrap.appendChild(listTitle);
+        // Guest list (filtered by tile)
+        var listWrap = document.createElement('div');
+        listWrap.className = 'print-table-list-wrap';
 
-      if (guests.length === 0) {
-        var empty = document.createElement('p');
-        empty.style.cssText = 'color:#999;font-style:italic;font-size:12px;';
-        empty.textContent = 'Keine Gäste zugewiesen.';
-        listWrap.appendChild(empty);
-      } else {
-        var tbl = document.createElement('table');
-        tbl.className = 'print-table-guest-table';
-        var thead = document.createElement('thead');
-        thead.innerHTML = '<tr><th>Platz</th><th>Vorname</th><th>Nachname</th><th>Alter</th></tr>';
-        tbl.appendChild(thead);
-        var tbody = document.createElement('tbody');
-        guests.forEach(function (g) {
-          var aGrp = state.ageGroups.find(function(a) { return a.id === (g.age || 'age-adult'); });
-          var aName = aGrp ? aGrp.name : 'Erwachsen';
-          var tr = document.createElement('tr');
-          tr.innerHTML =
-            '<td class="print-seat-num">' + g.seatNumber + '</td>' +
-            '<td>' + escHtml(g.firstName || '') + '</td>' +
-            '<td>' + escHtml(g.lastName || '') + '</td>' +
-            '<td>' + escHtml(aName) + '</td>';
-          tbody.appendChild(tr);
-        });
-        tbl.appendChild(tbody);
-        listWrap.appendChild(tbl);
+        var tileGuests = guests.filter(function(g) { return tileObj.primarySeatNumbers.indexOf(g.seatNumber) >= 0; });
 
-        // ── Legend: diet colours + high chair ───────────────────────
-        var usedDietsMap = {};
-        var hasHC = false;
-        guests.forEach(function (g) {
-          var diet = getDiet(g.dietId);
-          if (diet && diet.id !== 'none') usedDietsMap[diet.id] = diet;
-          if (g.needsHighChair) hasHC = true;
-        });
-        var usedDiets = Object.values ? Object.values(usedDietsMap) : Object.keys(usedDietsMap).map(function(k){ return usedDietsMap[k]; });
-        if (usedDiets.length > 0 || hasHC) {
-          var legend = document.createElement('div');
-          legend.className = 'print-table-legend';
-          if (usedDiets.length > 0) {
-            var dietTitle = document.createElement('div');
-            dietTitle.className = 'print-legend-title';
-            dietTitle.textContent = 'Diäten';
-            legend.appendChild(dietTitle);
-            usedDiets.forEach(function (diet) {
-              var row = document.createElement('div');
-              row.className = 'print-legend-row';
-              row.innerHTML =
-                '<span class="print-legend-swatch" style="background:' + diet.color + '"></span>' +
-                '<span class="print-legend-label">' + escHtml(diet.name) + '</span>';
-              legend.appendChild(row);
-            });
-          }
-          if (hasHC) {
+        if (tileGuests.length === 0) {
+          var empty = document.createElement('p');
+          empty.style.cssText = 'color:#999;font-style:italic;font-size:12px;';
+          empty.textContent = 'Keine Gäste in diesem Abschnitt.';
+          listWrap.appendChild(empty);
+        } else {
+          var tbl = document.createElement('table');
+          tbl.className = 'print-table-guest-table';
+          var thead = document.createElement('thead');
+          thead.innerHTML = '<tr><th>Platz</th><th>Vorname</th><th>Nachname</th><th>Alter</th></tr>';
+          tbl.appendChild(thead);
+          var tbody = document.createElement('tbody');
+          tileGuests.forEach(function (g) {
+            var aGrp = state.ageGroups.find(function(a) { return a.id === (g.age || 'age-adult'); });
+            var aName = aGrp ? aGrp.name : 'Erwachsen';
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+              '<td class="print-seat-num">' + g.seatNumber + '</td>' +
+              '<td>' + escHtml(g.firstName || '') + '</td>' +
+              '<td>' + escHtml(g.lastName || '') + '</td>' +
+              '<td>' + escHtml(aName) + '</td>';
+            tbody.appendChild(tr);
+          });
+          tbl.appendChild(tbody);
+          listWrap.appendChild(tbl);
+
+          // ── Legend: diet colours + high chair ───────────────────────
+          var usedDietsMap = {};
+          var hasHC = false;
+          tileGuests.forEach(function (g) {
+            var diet = getDiet(g.dietId);
+            if (diet && diet.id !== 'none') usedDietsMap[diet.id] = diet;
+            if (g.needsHighChair) hasHC = true;
+          });
+          var usedDiets = Object.values ? Object.values(usedDietsMap) : Object.keys(usedDietsMap).map(function(k){ return usedDietsMap[k]; });
+          if (usedDiets.length > 0 || hasHC) {
+            var legend = document.createElement('div');
+            legend.className = 'print-table-legend';
             if (usedDiets.length > 0) {
-              var sep = document.createElement('div');
-              sep.className = 'print-legend-sep';
-              legend.appendChild(sep);
+              var dietTitle = document.createElement('div');
+              dietTitle.className = 'print-legend-title';
+              dietTitle.textContent = 'Diäten';
+              legend.appendChild(dietTitle);
+              usedDiets.forEach(function (diet) {
+                var row = document.createElement('div');
+                row.className = 'print-legend-row';
+                row.innerHTML =
+                  '<span class="print-legend-swatch" style="background:' + diet.color + '"></span>' +
+                  '<span class="print-legend-label">' + escHtml(diet.name) + '</span>';
+                legend.appendChild(row);
+              });
             }
-            var hcTitle = document.createElement('div');
-            hcTitle.className = 'print-legend-title';
-            hcTitle.textContent = 'Symbol';
-            legend.appendChild(hcTitle);
-            var hcRow = document.createElement('div');
-            hcRow.className = 'print-legend-row';
-            hcRow.innerHTML =
-              '<span class="print-legend-hc-symbol"></span>' +
-              '<span class="print-legend-label">Hochstuhl</span>';
-            legend.appendChild(hcRow);
+            if (hasHC) {
+              if (usedDiets.length > 0) {
+                var sep = document.createElement('div');
+                sep.className = 'print-legend-sep';
+                legend.appendChild(sep);
+              }
+              var hcTitle = document.createElement('div');
+              hcTitle.className = 'print-legend-title';
+              hcTitle.textContent = 'Symbol';
+              legend.appendChild(hcTitle);
+              var hcRow = document.createElement('div');
+              hcRow.className = 'print-legend-row';
+              hcRow.innerHTML =
+                '<svg width="14" height="14" viewBox="0 0 14 14" style="flex-shrink:0; margin-right:6px; vertical-align:middle; overflow:visible;">' +
+                  '<polygon points="' + getTrapezoidPoints(7, 7, 5) + '" fill="#e5e7eb" stroke="#9ca3af" stroke-width="2.5" stroke-linejoin="round"></polygon>' +
+                '</svg>' +
+                '<span class="print-legend-label">Hochstuhl</span>';
+              legend.appendChild(hcRow);
+            }
+            listWrap.appendChild(legend);
           }
-          listWrap.appendChild(legend);
         }
-      }
 
-      layout.appendChild(listWrap);
-      page.appendChild(layout);
-      container.appendChild(page);
+        layout.appendChild(listWrap);
+        page.appendChild(layout);
+        container.appendChild(page);
+      });
     });
   }
 
   function buildTableSVGForPrint(tbl) {
-    var svgW = 360, svgH = 360;
-    var svg = svgEl('svg', {
-      viewBox: '0 0 ' + svgW + ' ' + svgH,
-      width: svgW + 'px',
-      height: svgH + 'px',
-      xmlns: SVG_NS,
-    });
-
-    var g = svgEl('g', { transform: 'translate(' + svgW / 2 + ',' + svgH / 2 + ')' });
-
-    var tableR = tbl.seatCount > 8 ? 82 : 72;
+    var disabled = Array.isArray(tbl.disabledSeats) ? tbl.disabledSeats : [];
+    
     var seatR = tbl.seatCount > 8 ? 28 : 30;
+    var geo = getTableCenterSize(tbl, seatR);
+    var tableName = tbl.name || ('Tisch ' + tbl.number);
+    var containerWidth = geo.type === 'rect' ? geo.w : geo.r * 2;
+    var fontSize = getAdjustedFontSize(tableName, containerWidth, 16);
 
-    // Table disc
-    g.appendChild(svgEl('circle', {
-      cx: 0, cy: 0, r: tableR,
-      fill: '#f3f4f6', stroke: '#d1d5db', 'stroke-width': 2.5,
-    }));
-    g.appendChild(svgEl('text', {
-      x: 0, y: 0,
-      fill: '#374151', 'font-size': '16px', 'font-weight': 700,
-      'font-family': "'Inter',sans-serif",
-      'text-anchor': 'middle', 'dominant-baseline': 'central',
-    }, 'Tisch ' + tbl.number));
+    // Bounding box of the table (without tiles)
+    var boundsW = (geo.type === 'rect' ? geo.w : geo.r * 2) + seatR * 4 + 40;
+    var boundsH = (geo.type === 'rect' ? geo.h : geo.r * 2) + seatR * 4 + 40;
 
-    // Seats
-    var seats = getSeatPositions(tbl.seatCount, tableR, seatR);
-    seats.forEach(function (seat) {
-      var guest = guestAtSeat(tbl.id, seat.number);
-      var diet = guest ? getDiet(guest.dietId) : null;
-      var hasDiet = diet && diet.id !== 'none';
+    var MAX_PAGE_SIZE = 600; // max logical SVG size per tile
 
-      // Light Grey when occupied, White when empty
-      var fill = hasDiet ? diet.color : (guest ? '#e5e7eb' : '#ffffff');
-      var stroke = guest ? '#9ca3af' : '#d1d5db';
-      var hcR = seatR * 0.88;
+    var cols = Math.ceil(boundsW / MAX_PAGE_SIZE);
+    var rows = Math.ceil(boundsH / MAX_PAGE_SIZE);
+    var tileW = boundsW / cols;
+    var tileH = boundsH / rows;
 
-      if (guest && guest.needsHighChair) {
-        g.appendChild(svgEl('rect', {
-          x: seat.x - hcR, y: seat.y - hcR,
-          width: hcR * 2, height: hcR * 2,
-          fill: fill, stroke: stroke, 'stroke-width': 2, rx: 4,
-        }));
-      } else {
-        g.appendChild(svgEl('circle', {
-          cx: seat.x, cy: seat.y, r: seatR,
-          fill: fill, stroke: stroke, 'stroke-width': guest ? 2 : 1.5,
-        }));
-      }
+    var seats = getSeatPositions(tbl.seatCount, seatR, tbl.shape, tbl.seatsLong, tbl.seatsShort);
+    var tiles = [];
 
-      var textColor = guest ? (hasDiet ? '#ffffff' : '#374151') : '#9ca3af';
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        var tX = -boundsW / 2 + c * tileW;
+        var tY = -boundsH / 2 + r * tileH;
+        // Tile bounds
+        var minX = tX, maxX = tX + tileW;
+        var minY = tY, maxY = tY + tileH;
 
-      // Seat number badge
-      g.appendChild(svgEl('text', {
-        x: seat.x, y: seat.y - (guest ? seatR * 0.55 : 0),
-        fill: textColor,
-        'font-size': '9px', 'font-weight': 700,
-        'font-family': "'Inter',sans-serif",
-        'text-anchor': 'middle', 'dominant-baseline': 'central',
-        style: 'pointer-events:none;',
-      }, String(seat.number)));
+        var primarySeats = [];
+        var ghostSeatsSet = {};
+        
+        seats.forEach(function (seat) {
+          if (disabled.indexOf(seat.number) >= 0) return;
+          if (seat.x >= minX && seat.x < maxX && seat.y >= minY && seat.y < maxY) {
+            primarySeats.push(seat);
+          }
+        });
 
-      if (guest) {
-        var first = guest.firstName || '';
-        var last = guest.lastName ? guest.lastName.charAt(0) + '.' : '';
+        // Find ghosts: +/- 2 neighbors for each primary seat
+        primarySeats.forEach(function(seat) {
+          var n1 = seat.number - 1; if (n1 < 1) n1 = tbl.seatCount;
+          var n2 = seat.number - 2; if (n2 < 1) n2 = tbl.seatCount;
+          var p1 = seat.number + 1; if (p1 > tbl.seatCount) p1 = 1;
+          var p2 = seat.number + 2; if (p2 > tbl.seatCount) p2 = 1;
+          ghostSeatsSet[n1] = true;
+          ghostSeatsSet[n2] = true;
+          ghostSeatsSet[p1] = true;
+          ghostSeatsSet[p2] = true;
+        });
+
+        // Remove primary seats from ghosts
+        primarySeats.forEach(function(s) {
+          delete ghostSeatsSet[s.number];
+        });
+        
+        var svg = svgEl('svg', {
+          viewBox: minX + ' ' + minY + ' ' + tileW + ' ' + tileH,
+          width: '100%',
+          height: 'auto',
+          xmlns: SVG_NS,
+        });
+
+        var g = svgEl('g', {}); 
+
+        // Table disc
+        if (geo.type === 'rect') {
+          g.appendChild(svgEl('rect', {
+            x: -geo.w / 2, y: -geo.h / 2, width: geo.w, height: geo.h,
+            fill: '#f3f4f6', stroke: '#d1d5db', 'stroke-width': 2.5, rx: 6,
+          }));
+        } else {
+          g.appendChild(svgEl('circle', {
+            cx: 0, cy: 0, r: geo.r,
+            fill: '#f3f4f6', stroke: '#d1d5db', 'stroke-width': 2.5,
+          }));
+        }
+        
         g.appendChild(svgEl('text', {
-          x: seat.x, y: seat.y + (last ? -3 : 3),
-          fill: textColor, 'font-size': '10px', 'font-weight': 600,
+          x: 0, y: 0,
+          fill: '#374151', 'font-size': fontSize + 'px', 'font-weight': 700,
           'font-family': "'Inter',sans-serif",
           'text-anchor': 'middle', 'dominant-baseline': 'central',
-          style: 'pointer-events:none;',
-        }, first));
-        if (last) {
+        }, tableName));
+
+        // Draw seats
+        seats.forEach(function (seat) {
+          if (disabled.indexOf(seat.number) >= 0) return;
+
+          var isPrimary = primarySeats.find(function(s) { return s.number === seat.number; });
+          var isGhost = ghostSeatsSet[seat.number];
+
+          if (!isPrimary && !isGhost) return; // Hide it!
+
+          var guest = guestAtSeat(tbl.id, seat.number);
+          var diet = guest ? getDiet(guest.dietId) : null;
+          var hasDiet = diet && diet.id !== 'none';
+
+          var fill, stroke, textColor;
+          if (isGhost) {
+            fill = '#f9fafb';
+            stroke = '#e5e7eb';
+            textColor = '#d1d5db';
+          } else {
+            fill = hasDiet ? diet.color : (guest ? '#e5e7eb' : '#ffffff');
+            stroke = guest ? '#9ca3af' : '#d1d5db';
+            textColor = guest ? (hasDiet ? '#ffffff' : '#374151') : '#9ca3af';
+          }
+
+          if (isGhost || !guest || !guest.needsHighChair) {
+            var sqR = seatR * 0.925;
+            g.appendChild(svgEl('rect', {
+              x: seat.x - sqR, y: seat.y - sqR, width: sqR*2, height: sqR*2,
+              fill: fill, stroke: stroke, 'stroke-width': (guest && !isGhost) ? 2 : 1.5,
+              rx: 4
+            }));
+          } else {
+            g.appendChild(svgEl('polygon', {
+              points: getTrapezoidPoints(seat.x, seat.y, seatR),
+              fill: fill, stroke: stroke, 'stroke-width': 2.5,
+              'stroke-linejoin': 'round',
+              transform: 'rotate(' + seat.angleDeg + ',' + seat.x + ',' + seat.y + ')'
+            }));
+          }
+
+          // Seat number badge
+          var badgeY = seat.y - ((guest && !isGhost) ? seatR * 0.45 : 0);
           g.appendChild(svgEl('text', {
-            x: seat.x, y: seat.y + 9,
-            fill: hasDiet ? '#f3f4f6' : '#6b7280', 'font-size': '9px', 'font-weight': 500,
+            x: seat.x, y: badgeY,
+            fill: textColor,
+            'font-size': '9px', 'font-weight': 700,
             'font-family': "'Inter',sans-serif",
             'text-anchor': 'middle', 'dominant-baseline': 'central',
             style: 'pointer-events:none;',
-          }, last));
-        }
-      }
-    });
+          }, String(seat.number)));
 
-    svg.appendChild(g);
-    return svg;
+          if (guest && !isGhost) {
+            var first = guest.firstName || '';
+            var last = guest.lastName ? guest.lastName.charAt(0) + '.' : '';
+            var nameY = seat.y + (last ? 0 : 4);
+            g.appendChild(svgEl('text', {
+              x: seat.x, y: nameY,
+              fill: textColor,
+              'font-size': '10px', 'font-weight': 600,
+              'font-family': "'Inter',sans-serif",
+              'text-anchor': 'middle', 'dominant-baseline': 'central',
+              style: 'pointer-events:none;',
+            }, first));
+            if (last) {
+              g.appendChild(svgEl('text', {
+                x: seat.x, y: nameY + 11,
+                fill: textColor,
+                'font-size': '10px', 'font-weight': 600,
+                'font-family': "'Inter',sans-serif",
+                'text-anchor': 'middle', 'dominant-baseline': 'central',
+                style: 'pointer-events:none;',
+              }, last));
+            }
+          }
+        });
+
+        svg.appendChild(g);
+        var tileStr = (cols > 1 || rows > 1) ? (' (Teil ' + (tiles.length + 1) + '/' + (cols * rows) + ')') : '';
+        tiles.push({ 
+          node: svg, 
+          tileStr: tileStr, 
+          primarySeatNumbers: primarySeats.map(function(s) { return s.number; }) 
+        });
+      }
+    }
+
+    return tiles;
   }
 
   function showTooltip(e, table, seatNum, guest, diet) {
@@ -1261,7 +1902,7 @@
         'table-' + table.id,
         'Tisch ' + table.number,
         guests,
-        table.seatCount,
+        getEffectiveSeatCount(table),
         table
       ));
     });
@@ -1393,7 +2034,7 @@
       state.guests.forEach(function (g) {
         if (g.tableId === t.id && guestsInGroup.indexOf(g) < 0) takenByOthers++;
       });
-      return (t.seatCount - takenByOthers) >= guestsInGroup.length;
+      return (getEffectiveSeatCount(t) - takenByOthers) >= guestsInGroup.length;
     }).sort(function (a, b) {
       return String(a.number).localeCompare(String(b.number), undefined, { numeric: true, sensitivity: 'base' });
     });
@@ -1411,9 +2052,10 @@
     });
     var tObj = getTable(tId);
     if (!tObj) return;
+    var activeSeats = getActiveSeatNumbers(tObj);
     var freeSeats = [];
-    for (var i = 1; i <= tObj.seatCount; i++) {
-      if (!takenSeats[i]) freeSeats.push(i);
+    for (var i = 0; i < activeSeats.length; i++) {
+      if (!takenSeats[activeSeats[i]]) freeSeats.push(activeSeats[i]);
     }
     guestsInGroup.forEach(function (g, idx) {
       g.tableId = tId;
@@ -1436,7 +2078,7 @@
     header.innerHTML =
       '<h3><span class="group-chevron ' + (collapsed ? '' : 'open') + '">▶</span> ' +
       escHtml(title) +
-      (tableObj ? ' <span class="table-indicator-pill">' + maxSeats + 'er Tisch</span>' : '') +
+      (tableObj ? ' <span class="table-indicator-pill">' + tableObj.seatCount + 'er Tisch</span>' : '') +
       '</h3>' +
       '<span class="count">' + guests.length + (maxSeats ? '/' + maxSeats : '') + '</span>';
     header.addEventListener('click', function () {
@@ -1671,7 +2313,7 @@
     var diet = getDiet(guest.dietId);
     var table = guest.tableId ? getTable(guest.tableId) : null;
     var taken = guest.tableId ? takenSeats(guest.tableId, guest.id) : [];
-    var maxSeats = table ? table.seatCount : 8;
+    var maxSeats = table ? getEffectiveSeatCount(table) : 8;
     var isExpanded = isDetailView ? !!expandedGuestsDetail[guest.id] : !!expandedGuests[guest.id];
 
     if (!isDetailView && !forceFullWidth) {
@@ -1850,11 +2492,13 @@
 
     if (guest.tableId) {
       var seatOptions = [{ value: '', label: '—' }];
-      for (var s = 1; s <= maxSeats; s++) {
-        var isTaken = taken.indexOf(s) >= 0;
+      var activeSeatNums = table ? getActiveSeatNumbers(table) : [];
+      for (var s = 0; s < activeSeatNums.length; s++) {
+        var sn = activeSeatNums[s];
+        var isTaken = taken.indexOf(sn) >= 0;
         seatOptions.push({
-          value: String(s),
-          label: String(s) + (isTaken ? ' ⇄' : ''),
+          value: String(sn),
+          label: String(sn) + (isTaken ? ' ⇄' : ''),
         });
       }
       var seatSel = document.createElement('select');
@@ -2456,13 +3100,19 @@
       if (!tbl) return;
       tbl.seatCount = parseInt(this.value);
 
+      // Remove disabled seats that exceed new seatCount
+      if (Array.isArray(tbl.disabledSeats)) {
+        tbl.disabledSeats = tbl.disabledSeats.filter(function (s) { return s <= tbl.seatCount; });
+      }
+
       // Compact seat numbers: remove gaps caused by dropped empty seats.
-      // Sort seated guests by their current number and reassign 1, 2, 3…
-      // so nobody ends up on a seat index that no longer exists.
+      // Sort seated guests by their current number and reassign to the first
+      // available active seat numbers so nobody ends up on a non-existent seat.
+      var activeSeats = getActiveSeatNumbers(tbl);
       var seated = state.guests
         .filter(function (g) { return g.tableId === tbl.id && g.seatNumber; })
         .sort(function (a, b) { return a.seatNumber - b.seatNumber; });
-      seated.forEach(function (g, i) { g.seatNumber = i + 1; });
+      seated.forEach(function (g, i) { g.seatNumber = activeSeats[i] || null; });
 
       saveAndRender();
       renderTableDetailSVG(currentEditingTableId);
@@ -2489,10 +3139,143 @@
       saveAndRender(); // re-renders venue SVG and grouped guest list headers
     });
 
+    // Zoom Controls
+    $('btn-zoom-in').addEventListener('click', function() {
+      detailZoom = Math.min(2.0, detailZoom + 0.1);
+      updateZoomDisplay();
+      if (currentEditingTableId) renderTableDetailSVG(currentEditingTableId);
+    });
+    $('btn-zoom-out').addEventListener('click', function() {
+      detailZoom = Math.max(0.2, detailZoom - 0.1);
+      updateZoomDisplay();
+      if (currentEditingTableId) renderTableDetailSVG(currentEditingTableId);
+    });
+    $('btn-zoom-fit').addEventListener('click', function() {
+      zoomFit(currentEditingTableId);
+    });
+
+    // Detail SVG Panning
+    var svgContainer = $('table-detail-svg-container');
+    var isDetailPanning = false;
+    var lastPanClientX, lastPanClientY;
+
+    svgContainer.addEventListener('mousedown', function(e) {
+      if (e.button !== 0) return; // only left click
+      // don't pan if clicking on an interactive seat
+      var targetStyle = window.getComputedStyle(e.target);
+      if (e.target.tagName !== 'svg' && targetStyle.cursor === 'pointer') return;
+      
+      isDetailPanning = true;
+      lastPanClientX = e.clientX;
+      lastPanClientY = e.clientY;
+      svgContainer.style.cursor = 'grabbing';
+      e.preventDefault(); // prevent text selection
+    });
+
+    window.addEventListener('mousemove', function(e) {
+      if (!isDetailPanning) return;
+      var dx = e.clientX - lastPanClientX;
+      var dy = e.clientY - lastPanClientY;
+      lastPanClientX = e.clientX;
+      lastPanClientY = e.clientY;
+
+      var rect = svgContainer.getBoundingClientRect();
+      var viewSize = 400 / detailZoom;
+      var minDim = Math.min(rect.width, rect.height);
+      var scale = viewSize / minDim;
+
+      detailPanX += dx * scale;
+      detailPanY += dy * scale;
+
+      var svg = svgContainer.querySelector('svg');
+      if (svg) {
+        svg.setAttribute('viewBox', (-detailPanX) + ' ' + (-detailPanY) + ' ' + viewSize + ' ' + viewSize);
+      }
+    });
+
+    window.addEventListener('mouseup', function() {
+      if (isDetailPanning) {
+        isDetailPanning = false;
+        svgContainer.style.cursor = '';
+      }
+    });
+
     // Add table buttons
     $('btn-add-7').addEventListener('click', function () { addTable(7); });
     $('btn-add-8').addEventListener('click', function () { addTable(8); });
     $('btn-add-10').addEventListener('click', function () { addTable(10); });
+
+    // Edit mode toggle in detail modal
+    $('btn-edit-mode').addEventListener('click', toggleEditMode);
+    var rotBtn = $('btn-rotate-table');
+    if (rotBtn) {
+      rotBtn.addEventListener('click', function() {
+        if (!currentEditingTableId || !detailEditMode) return;
+        var tbl = getTable(currentEditingTableId);
+        if (!tbl || tbl.shape !== 'rectangle' || tbl.seatsLong == null) return;
+        
+        var totalSeats = tbl.seatCount;
+        var shift = tbl.isRotated ? -tbl.seatsLong : tbl.seatsShort;
+        
+        // Update guests
+        state.guests.forEach(function (g) {
+          if (g.tableId === tbl.id && g.seatNumber) {
+            var newNum = (g.seatNumber + shift) % totalSeats;
+            if (newNum <= 0) newNum += totalSeats;
+            g.seatNumber = newNum;
+          }
+        });
+
+        // Update disabled seats
+        if (Array.isArray(tbl.disabledSeats)) {
+          tbl.disabledSeats = tbl.disabledSeats.map(function(s) {
+            var newNum = (s + shift) % totalSeats;
+            if (newNum <= 0) newNum += totalSeats;
+            return newNum;
+          });
+        }
+
+        tbl.isRotated = !tbl.isRotated;
+
+        var temp = tbl.seatsLong;
+        tbl.seatsLong = tbl.seatsShort;
+        tbl.seatsShort = temp;
+        
+        saveAndRender();
+        renderTableDetailSVG(tbl.id);
+        renderTableDetailGuests(tbl.id); // Re-render guest list to reflect new numbers
+      });
+    }
+
+    // Blueprint builder
+    $('btn-open-blueprint').addEventListener('click', openBlueprintBuilder);
+    $('blueprint-builder-close').addEventListener('click', closeBlueprintBuilder);
+    $('bp-cancel').addEventListener('click', closeBlueprintBuilder);
+    $('bp-save').addEventListener('click', saveBlueprint);
+    $('blueprint-builder-modal').addEventListener('click', function (e) {
+      if (e.target === $('blueprint-builder-modal')) closeBlueprintBuilder();
+    });
+    // Shape toggle
+    $('bp-shape-circle').addEventListener('click', function () {
+      $('bp-shape-circle').classList.add('active');
+      $('bp-shape-rect').classList.remove('active');
+      $('bp-rect-fields').style.display = 'none';
+      $('bp-circle-fields').style.display = '';
+      bpPreviewDisabledSeats = [];
+      renderBlueprintPreview();
+    });
+    $('bp-shape-rect').addEventListener('click', function () {
+      $('bp-shape-rect').classList.add('active');
+      $('bp-shape-circle').classList.remove('active');
+      $('bp-rect-fields').style.display = '';
+      $('bp-circle-fields').style.display = 'none';
+      bpPreviewDisabledSeats = [];
+      renderBlueprintPreview();
+    });
+    // Live preview updates
+    $('bp-seat-count').addEventListener('input', function () { bpPreviewDisabledSeats = []; renderBlueprintPreview(); });
+    $('bp-seats-long').addEventListener('input', function () { bpPreviewDisabledSeats = []; renderBlueprintPreview(); });
+    $('bp-seats-short').addEventListener('input', function () { bpPreviewDisabledSeats = []; renderBlueprintPreview(); });
 
     // Venue toggle button
     $('btn-toggle-venue').addEventListener('click', toggleVenue);
@@ -2529,7 +3312,14 @@
       var PAD = 80;
       var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       state.tables.forEach(function (t) {
-        var r = (t.seatCount > 8 ? 36 : 30) + 12 + 5 + 12; // max table radius + seat
+        var seatR = 12;
+        var geo = getTableCenterSize(t, seatR);
+        var r;
+        if (geo.type === 'rect') {
+          r = Math.max(geo.w, geo.h) / 2 + seatR + 5 + seatR;
+        } else {
+          r = computeCircleOrbit(t.seatCount, seatR) + seatR;
+        }
         minX = Math.min(minX, t.x - r);
         minY = Math.min(minY, t.y - r);
         maxX = Math.max(maxX, t.x + r);
@@ -2601,6 +3391,7 @@
 
     // Initial render after loading state
     loadState(function () {
+      renderBlueprintButtons();
       renderAll();
     });
   }

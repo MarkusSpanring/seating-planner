@@ -43,6 +43,8 @@
             <button class="btn btn-accent btn-sm" id="btn-add-7">+ 7er Tisch</button>
             <button class="btn btn-accent btn-sm" id="btn-add-8">+ 8er Tisch</button>
             <button class="btn btn-accent btn-sm" id="btn-add-10">+ 10er Tisch</button>
+            <span id="custom-blueprint-buttons"></span>
+            <button class="btn btn-sm" id="btn-open-blueprint" style="margin-left: 6px;" title="Tischvorlage erstellen">✏️ Vorlage</button>
             <div class="table-list" id="table-list">
               <span class="table-list-empty">Noch keine Tische</span>
             </div>
@@ -177,13 +179,23 @@
             <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; white-space: nowrap; font-weight: 500; text-transform: none; letter-spacing: 0; margin-bottom: 0;">
               <input type="checkbox" id="table-detail-fixed" style="margin:0; cursor:pointer; width:14px; height:14px; accent-color:#22c55e;"> Plätze fixiert
             </label>
+            <button class="btn btn-sm edit-mode-toggle" id="btn-rotate-table" title="Tisch um 90° drehen" style="display:none;">↻ Drehen</button>
+            <button class="btn btn-sm edit-mode-toggle" id="btn-edit-mode" title="Plätze aktivieren/deaktivieren">🔧 Bearbeitungsmodus</button>
             <button class="btn btn-accent" id="table-detail-save">Name aktualisieren</button>
             <button class="btn btn-danger" id="table-detail-remove">🗑️ Tisch entfernen</button>
           </div>
         </div>
         <div style="display: flex; gap: 32px; align-items: flex-start;">
-          <div class="table-detail-svg-container" id="table-detail-svg-container"
-            style="flex: 1; display: flex; justify-content: center; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; gap: 8px; justify-content: center; align-items: center; background: rgba(0,0,0,0.1); padding: 4px; border-radius: 6px;">
+              <button class="btn btn-sm" id="btn-zoom-out" style="padding: 2px 8px;">-</button>
+              <span id="zoom-level" style="font-size: 0.8rem; font-family: monospace; width: 45px; text-align: center;">100%</span>
+              <button class="btn btn-sm" id="btn-zoom-in" style="padding: 2px 8px;">+</button>
+              <button class="btn btn-sm" id="btn-zoom-fit" style="padding: 2px 8px;">Fit</button>
+            </div>
+            <div class="table-detail-svg-container" id="table-detail-svg-container"
+              style="display: flex; justify-content: center; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 8px; overflow: hidden;">
+            </div>
           </div>
           <div style="flex: 1.6; min-width: 750px;">
             <h3
@@ -198,6 +210,58 @@
 
   <!-- Tooltip -->
   <div class="seat-tooltip" id="seat-tooltip" style="display:none"></div>
+
+  <!-- Blueprint Builder Modal -->
+  <div class="modal-overlay" id="blueprint-builder-modal" style="display:none">
+    <div class="modal blueprint-builder-modal-content">
+      <div class="modal-header">
+        <h2>Tischvorlage erstellen</h2>
+        <button class="modal-close" id="blueprint-builder-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="blueprint-builder-layout">
+          <!-- Left: controls -->
+          <div class="blueprint-builder-controls">
+            <div class="bp-field">
+              <label>Name</label>
+              <input type="text" id="bp-name" placeholder="z.B. Brauttisch" class="searchable-picker-input" style="width: 100%; box-sizing: border-box;">
+            </div>
+            <div class="bp-field">
+              <label>Form</label>
+              <div class="bp-shape-toggle">
+                <button class="btn btn-sm bp-shape-btn active" id="bp-shape-circle" data-shape="circle">○ Kreis</button>
+                <button class="btn btn-sm bp-shape-btn" id="bp-shape-rect" data-shape="rectangle">▭ Rechteck</button>
+              </div>
+            </div>
+            <div class="bp-field" id="bp-circle-fields">
+              <label>Plätze</label>
+              <input type="number" id="bp-seat-count" min="3" max="24" value="8" class="searchable-picker-input" style="width: 80px;">
+            </div>
+            <div class="bp-field bp-rect-only" id="bp-rect-fields" style="display: none;">
+              <label>Plätze Längsseite / Querseite</label>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <input type="number" id="bp-seats-long" min="1" max="10" value="3" class="searchable-picker-input" style="width: 70px;">
+                <span style="color: var(--text-muted); line-height: 32px;">×</span>
+                <input type="number" id="bp-seats-short" min="0" max="10" value="1" class="searchable-picker-input" style="width: 70px;">
+              </div>
+              <span style="font-size: 0.7rem; color: var(--text-muted);">Gesamt: <span id="bp-total-display">8</span> Plätze</span>
+            </div>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 12px;">Klicke auf Plätze in der Vorschau, um sie zu deaktivieren.</p>
+            <div style="display: flex; gap: 8px; margin-top: 20px;">
+              <button class="btn btn-accent btn-sm" id="bp-save">Vorlage erstellen</button>
+              <button class="btn btn-sm" id="bp-cancel">Abbrechen</button>
+            </div>
+            <!-- Existing blueprints -->
+            <div id="bp-existing-list" style="margin-top: 20px;"></div>
+          </div>
+          <!-- Right: preview -->
+          <div class="blueprint-builder-preview" id="bp-preview">
+            <!-- SVG rendered by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 
