@@ -440,6 +440,22 @@
     if (emBtn) emBtn.classList.remove('active');
     var rotBtn = $('btn-rotate-table');
     if (rotBtn) rotBtn.style.display = 'none';
+
+    var renameWrap = $('td-rename-wrap');
+    if (renameWrap) renameWrap.classList.remove('edit-mode-disabled');
+    var seatcountWrap = $('td-seatcount-wrap');
+    if (seatcountWrap) seatcountWrap.classList.remove('edit-mode-disabled');
+    var lblTableFixed = $('td-lbl-table-fixed');
+    if (lblTableFixed) lblTableFixed.classList.remove('edit-mode-disabled');
+    var lblSeatFixed = $('td-lbl-seat-fixed');
+    if (lblSeatFixed) lblSeatFixed.classList.remove('edit-mode-disabled');
+    var rightPanel = $('table-detail-right-panel');
+    if (rightPanel) rightPanel.classList.remove('edit-mode-disabled');
+    var btnSave = $('table-detail-save');
+    if (btnSave) btnSave.classList.remove('edit-mode-disabled');
+    var btnRemove = $('table-detail-remove');
+    if (btnRemove) btnRemove.classList.remove('edit-mode-disabled');
+
     // Remove any custom seatcount options added for blueprint tables
     var seatSel = $('table-detail-seatcount');
     var standardVals = ['7', '8', '10'];
@@ -473,6 +489,15 @@
     selectedDetailSeat = null; // clear any pending swap
     var emBtn = $('btn-edit-mode');
     var rotBtn = $('btn-rotate-table');
+    
+    var renameWrap = $('td-rename-wrap');
+    var seatcountWrap = $('td-seatcount-wrap');
+    var lblTableFixed = $('td-lbl-table-fixed');
+    var lblSeatFixed = $('td-lbl-seat-fixed');
+    var rightPanel = $('table-detail-right-panel');
+    var btnSave = $('table-detail-save');
+    var btnRemove = $('table-detail-remove');
+
     if (emBtn) {
       if (detailEditMode) {
         emBtn.classList.add('active');
@@ -482,9 +507,23 @@
             if (rotBtn) rotBtn.style.display = 'inline-flex';
           }
         }
+        if (renameWrap) renameWrap.classList.add('edit-mode-disabled');
+        if (seatcountWrap) seatcountWrap.classList.add('edit-mode-disabled');
+        if (lblTableFixed) lblTableFixed.classList.add('edit-mode-disabled');
+        if (lblSeatFixed) lblSeatFixed.classList.add('edit-mode-disabled');
+        if (rightPanel) rightPanel.classList.add('edit-mode-disabled');
+        if (btnSave) btnSave.classList.add('edit-mode-disabled');
+        if (btnRemove) btnRemove.classList.add('edit-mode-disabled');
       } else {
         emBtn.classList.remove('active');
         if (rotBtn) rotBtn.style.display = 'none';
+        if (renameWrap) renameWrap.classList.remove('edit-mode-disabled');
+        if (seatcountWrap) seatcountWrap.classList.remove('edit-mode-disabled');
+        if (lblTableFixed) lblTableFixed.classList.remove('edit-mode-disabled');
+        if (lblSeatFixed) lblSeatFixed.classList.remove('edit-mode-disabled');
+        if (rightPanel) rightPanel.classList.remove('edit-mode-disabled');
+        if (btnSave) btnSave.classList.remove('edit-mode-disabled');
+        if (btnRemove) btnRemove.classList.remove('edit-mode-disabled');
       }
     }
     if (currentEditingTableId) {
@@ -947,9 +986,10 @@
       var hasDiet = guest ? (diet && diet.id !== 'none') : false;
       var textColor = isDisabled ? 'rgba(255,255,255,0.3)' : (hasDiet ? '#ffffff' : '#374151');
 
-      // Always render seat number (small, offset above name when occupied)
+      // Always render seat number (small, offset above name when occupied and not in edit mode)
+      var nameOffset = (guest && !detailEditMode) ? seatR * 0.52 : 0;
       g.appendChild(svgEl('text', {
-        x: seat.x, y: seat.y - (guest ? seatR * 0.52 : 0),
+        x: seat.x, y: seat.y - nameOffset,
         fill: isDisabled ? 'rgba(255,255,255,0.3)' : (guest ? (hasDiet ? 'rgba(255,255,255,0.75)' : '#6b7280') : '#9ca3af'),
         'font-size': '13px', 'font-weight': 700,
         'font-family': "'Inter',sans-serif", 'text-anchor': 'middle',
@@ -966,7 +1006,7 @@
           'dominant-baseline': 'central',
           style: 'pointer-events: none;'
         }, '✕'));
-      } else if (guest) {
+      } else if (guest && !detailEditMode) {
         var names = guest.firstName.split(' ');
         if (guest.lastName) names.push(guest.lastName);
 
@@ -1038,8 +1078,14 @@
   var SEAT_GAP = 12; // increased for more breathing room between seats
 
   function computeCircleOrbit(seatCount, seatR) {
+    // Assume a circumscribed circle around the seat (square diagonal)
+    // sqR = seatR * 0.925. Diagonal = 2 * sqrt(2) * sqR.
+    // So effective radius = sqrt(2) * sqR
+    var sqR = seatR * 0.925;
+    var effectiveR = Math.sqrt(2) * sqR;
+    
     // Minimum orbit so adjacent seats don't overlap
-    var needed = seatCount * (2 * seatR + SEAT_GAP) / (2 * Math.PI);
+    var needed = seatCount * (2 * effectiveR + SEAT_GAP) / (2 * Math.PI);
     var minOrbit = seatR * 1.5 + seatR + 15; // increased margin to table center
     return Math.max(needed, minOrbit);
   }

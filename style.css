@@ -1797,6 +1797,13 @@ label {
   border-color: rgba(245, 158, 11, 0.4);
 }
 
+.edit-mode-disabled {
+  opacity: 0.15;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+  filter: grayscale(100%);
+}
+
 /* ===== Blueprint Builder Modal ===== */
 .blueprint-builder-modal-content {
   width: 740px;
