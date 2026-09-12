@@ -1,0 +1,185 @@
+/* ===== Shared Modals & Dialog Components ===== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  animation: fadeIn 0.15s ease;
+}
+
+.modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-highlight);
+  border-radius: var(--radius);
+  width: 420px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.2s ease;
+}
+
+.modal-header {
+  padding: 20px 24px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px;
+  transition: color var(--transition);
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+}
+
+.modal-body {
+  padding: 20px 24px;
+}
+
+/* ── Searchable Guest Picker ── */
+.searchable-picker {
+  position: relative;
+  width: 100%;
+}
+
+.searchable-picker-input {
+  font-family: var(--font);
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 3px 8px;
+  height: 24px;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.searchable-picker-input::placeholder {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.searchable-picker-input:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background-color: rgba(255, 255, 255, 0.07);
+}
+
+.searchable-picker-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15);
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+}
+
+.searchable-picker-dropdown {
+  position: fixed;
+  max-height: 180px;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-highlight);
+  border-radius: 6px;
+  z-index: 9999;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.searchable-picker-dropdown::-webkit-scrollbar {
+  width: 4px;
+}
+
+.searchable-picker-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.searchable-picker-option {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.1s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.searchable-picker-option:hover {
+  background: rgba(139, 92, 246, 0.15);
+  color: var(--text-primary);
+}
+
+.searchable-picker-empty {
+  padding: 8px 10px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+}
+
+/* ── Diet & Age Config Modal Items ── */
+.inline-diet-select {
+  max-width: none !important;
+}
+
+.diet-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.diet-item:last-of-type {
+  border-bottom: none;
+}
+
+.diet-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.diet-name {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.add-diet-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  align-items: flex-end;
+}
+
+.add-diet-row input[type="text"] {
+  flex: 1;
+}
+
+.add-diet-row input[type="color"] {
+  width: 40px;
+  flex-shrink: 0;
+}
+

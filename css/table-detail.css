@@ -1,0 +1,96 @@
+/* ===== Table Detail Modal ===== */
+
+.table-detail-modal-content {
+  width: 1500px;
+  max-width: 95vw;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.table-detail-header-controls {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.table-detail-layout {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.table-detail-left-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.table-detail-zoom-bar {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.1);
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.table-detail-zoom-level {
+  font-size: 0.8rem;
+  font-family: monospace;
+  width: 45px;
+  text-align: center;
+}
+
+.table-detail-svg-container {
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table-detail-right-panel {
+  flex: 1.6;
+  min-width: 750px;
+}
+
+.table-detail-guests-header {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 6px;
+}
+
+.table-detail-guests-list {
+  max-height: 520px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* ── Edit Mode / Rotation Controls ── */
+.edit-mode-toggle {
+  transition: all 0.2s ease;
+}
+
+.edit-mode-toggle.active {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border-color: #f59e0b !important;
+  color: #f59e0b !important;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+}
+
+.edit-mode-toggle:hover {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.edit-mode-disabled {
+  opacity: 0.15;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+  filter: grayscale(100%);
+}
+

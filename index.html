@@ -16,12 +16,43 @@
   <div id="app">
     <!-- Header -->
     <header class="app-header">
-      <h1>💒 Sitzplan</h1>
+      <div class="header-left">
+        <h1>💒 Sitzplan</h1>
+        <div class="venue-selector-wrap" id="venue-selector-wrap">
+          <button class="venue-dropdown-btn" id="btn-venue-dropdown" title="Venue auswählen oder verwalten">
+            <span class="venue-btn-icon">🏛️</span>
+            <span class="venue-btn-name" id="venue-name-display">Hauptsaal</span>
+            <span class="venue-btn-caret">▾</span>
+          </button>
+          <div class="venue-dropdown-menu" id="venue-dropdown-menu" style="display: none;">
+            <div class="venue-dropdown-header">Venues</div>
+            <div class="venue-dropdown-list" id="venue-dropdown-list"></div>
+            <div class="venue-dropdown-divider"></div>
+            <button class="venue-dropdown-action" id="btn-venue-create" title="Neue leere Venue oder mit übernommener Gästeliste erstellen">
+              <span>➕</span> Neue Venue erstellen...
+            </button>
+            <button class="venue-dropdown-action" id="btn-venue-rename" title="Aktuelle Venue umbenennen">
+              <span>✏️</span> Venue umbenennen...
+            </button>
+            <button class="venue-dropdown-action" id="btn-venue-size-dropdown" title="Saalgröße (Raummaße) in cm anpassen">
+              <span>📐</span> Saalgröße anpassen...
+            </button>
+            <button class="venue-dropdown-action text-danger" id="btn-venue-delete" title="Aktuelle Venue löschen">
+              <span>🗑️</span> Venue löschen
+            </button>
+          </div>
+        </div>
+      </div>
       <div class="header-right">
-        <button class="btn btn-sm btn-accent" id="btn-print"
-          style="margin-right: 12px; background-color: var(--bg-glass); border-color: var(--border-color); color: var(--text-primary);">
+        <button class="btn btn-sm" id="btn-toggle-venue" title="Saalplan ein- oder ausblenden (Vollbild-Tabelle)"
+          style="background-color: var(--bg-glass); border-color: var(--border-color); color: var(--text-primary);">
+          <span class="venue-toggle-icon" id="venue-toggle-icon">◀</span>
+          <span id="venue-toggle-label">Venue ausblenden</span>
+        </button>
+        <button class="btn btn-sm btn-accent" id="btn-print" title="Saalplan und Tischübersichten drucken oder als PDF exportieren"
+          style="background-color: var(--bg-glass); border-color: var(--border-color); color: var(--text-primary);">
           🖨️ Venue drucken</button>
-        <span class="stats-badge" id="stats-badge">
+        <span class="stats-badge" id="stats-badge" title="Platzierungs-Übersicht: Platzierte Gäste / Gesamtgäste und Gesamtkapazität">
           <strong>0</strong> / 0 platziert · 0 Plätze gesamt
         </span>
       </div>
@@ -31,23 +62,21 @@
     <div class="app-body">
       <!-- Left: venue canvas -->
       <div class="venue-panel" id="venue-panel">
-        <!-- Venue header with collapse toggle -->
+        <!-- Venue header with spawner toolbar -->
         <div class="venue-header">
-          <div class="venue-header-left">
-            <button class="btn btn-sm venue-toggle-btn" id="btn-toggle-venue" title="Toggle venue view">
-              <span class="venue-toggle-icon" id="venue-toggle-icon">◀</span>
-              <span id="venue-toggle-label">Venue ausblenden</span>
+          <div class="venue-header-left" style="display: flex; align-items: center; gap: 10px;">
+            <h2 id="venue-title">Saalplan – Hauptsaal</h2>
+            <button class="btn btn-sm" id="btn-venue-size" title="Saalgröße (Raummaße) in cm anpassen"
+              style="background: var(--bg-glass); border-color: var(--border-color); color: var(--text-primary); font-weight: 500;">
+              <span id="venue-size-label">📐 Saalgröße</span>
             </button>
           </div>
           <div class="venue-header-right" id="venue-toolbar-inline">
-            <button class="btn btn-accent btn-sm" id="btn-add-7">+ 7er Tisch</button>
-            <button class="btn btn-accent btn-sm" id="btn-add-8">+ 8er Tisch</button>
-            <button class="btn btn-accent btn-sm" id="btn-add-10">+ 10er Tisch</button>
+            <button class="btn btn-accent btn-sm" id="btn-add-7" title="Neuen runden Tisch mit 7 Plätzen hinzufügen">+ 7er Tisch</button>
+            <button class="btn btn-accent btn-sm" id="btn-add-8" title="Neuen runden Tisch mit 8 Plätzen hinzufügen">+ 8er Tisch</button>
+            <button class="btn btn-accent btn-sm" id="btn-add-10" title="Neuen runden Tisch mit 10 Plätzen hinzufügen">+ 10er Tisch</button>
             <span id="custom-blueprint-buttons"></span>
-            <button class="btn btn-sm" id="btn-open-blueprint" style="margin-left: 6px;" title="Tischvorlage erstellen">✏️ Vorlage</button>
-            <div class="table-list" id="table-list">
-              <span class="table-list-empty">Noch keine Tische</span>
-            </div>
+            <button class="btn btn-sm" id="btn-open-blueprint" style="margin-left: 6px;" title="Tischvorlagen verwalten oder neue Vorlage erstellen">✏️ Vorlage</button>
           </div>
         </div>
         <!-- Canvas -->
@@ -55,6 +84,7 @@
           <div class="venue-container" id="venue-container">
             <!-- SVG rendered by JS -->
           </div>
+          <div class="venue-legends-overlay" id="venue-legends-overlay"></div>
         </div>
       </div>
 
@@ -63,210 +93,33 @@
         <div class="panel-header">
           <h2>Gäste</h2>
           <div class="panel-actions" style="display: flex; align-items: center; gap: 8px;">
-
             <input type="text" id="guest-filter-input"
               style="display: none; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); font-size: 0.8rem; width: 140px;"
-              placeholder="Name filtern...">
-            <button class="btn btn-sm" id="btn-add-guest" style="display: none;">➕ Gast hinzufügen</button>
-            <button class="btn btn-sm" id="btn-expand-all">⬇ Alle ausklappen</button>
-            <input type="file" accept=".csv" id="csv-input" class="file-input-hidden" />
-            <button class="btn btn-sm" id="btn-import" style="display: none;">📄 CSV importieren</button>
-            <button class="btn btn-sm" id="btn-ages" style="display: none;">👶 Altersgruppen</button>
-            <button class="btn btn-sm" id="btn-diets" style="display: none;">🎨 Diäten</button>
+              placeholder="Name filtern..." title="Gästeliste nach Vor- oder Nachname filtern">
+            <button class="btn btn-sm" id="btn-add-guest" style="display: none;" title="Neuen Gast zur Gästeliste hinzufügen">➕ Gast hinzufügen</button>
+            <button class="btn btn-sm" id="btn-expand-all" title="Alle Tischgruppen ausklappen bzw. einklappen">⬇ Alle ausklappen</button>
+            <input type="file" accept=".csv" id="csv-input" class="file-input-hidden" title="CSV-Datei auswählen" />
+            <button class="btn btn-sm" id="btn-import" style="display: none;" title="Gäste aus einer CSV-Datei importieren">📄 CSV importieren</button>
+            <button class="btn btn-sm" id="btn-ages" style="display: none;" title="Altersgruppen verwalten und konfigurieren">👶 Altersgruppen</button>
+            <button class="btn btn-sm" id="btn-diets" style="display: none;" title="Ernährungsweisen, Allergien und Farben konfigurieren">🎨 Diäten</button>
           </div>
         </div>
-        <div class="panel-body" id="guest-list">
-          <div class="empty-state" id="empty-state">
-            <p>Noch keine Gäste</p>
-            <button class="btn btn-accent" id="btn-import-empty">Gästeliste importieren</button>
-          </div>
-        </div>
+        <div class="panel-body" id="guest-list"></div>
       </div>
     </div>
   </div>
 
-  <!-- Add Guest Modal -->
-  <div class="modal-overlay" id="add-guest-modal" style="display:none">
-    <div class="modal" style="width: 360px;">
-      <div class="modal-header">
-        <h2>Neuen Gast hinzufügen</h2>
-        <button class="modal-close" id="add-guest-close">✕</button>
-      </div>
-      <div class="modal-body">
-        <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-          <div style="flex: 1;">
-            <label
-              style="display:block; margin-bottom: 6px; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Vorname</label>
-            <input type="text" id="add-guest-first" class="searchable-picker-input"
-              style="width: 100%; padding: 8px 12px; margin: 0; box-sizing: border-box;" placeholder="Vorname" />
-          </div>
-          <div style="flex: 1;">
-            <label
-              style="display:block; margin-bottom: 6px; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Nachname</label>
-            <input type="text" id="add-guest-last" class="searchable-picker-input"
-              style="width: 100%; padding: 8px 12px; margin: 0; box-sizing: border-box;" placeholder="Nachname" />
-          </div>
-        </div>
-        <div style="margin-bottom: 16px;">
-          <label
-            style="display:block; margin-bottom: 6px; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em;">Diät
-            / Allergie</label>
-          <select id="add-guest-diet" class="inline-diet-select"
-            style="width: 100%; max-width: none; border: 1px solid var(--border-color); background: var(--bg-card); padding: 8px 12px; border-radius: 4px; color: #fff; outline: none; box-sizing: border-box;">
-          </select>
-        </div>
-        <div style="margin-bottom: 24px;">
-          <label
-            style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer; color: var(--text-primary);">
-            <input type="checkbox" id="add-guest-hc" style="margin: 0; cursor: pointer;"> Benötigt Hochstuhl
-          </label>
-        </div>
-        <div style="display: flex; justify-content: flex-end; gap: 12px;">
-          <button class="btn btn-sm" id="add-guest-cancel">Abbrechen</button>
-          <button class="btn btn-sm btn-accent" id="add-guest-save">Gast hinzufügen</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Diet Config Modal -->
-  <div class="modal-overlay" id="diet-modal" style="display:none">
-    <div class="modal">
-      <div class="modal-header">
-        <h2>Diät / Allergie Optionen</h2>
-        <button class="modal-close" id="diet-modal-close">✕</button>
-      </div>
-      <div class="modal-body" id="diet-modal-body"></div>
-    </div>
-  </div>
-
-  <!-- Age Config Modal -->
-  <div class="modal-overlay" id="age-modal" style="display:none">
-    <div class="modal">
-      <div class="modal-header">
-        <h2>Altersgruppen konfigurieren</h2>
-        <button class="modal-close" id="age-modal-close">✕</button>
-      </div>
-      <div class="modal-body" id="age-modal-body"></div>
-    </div>
-  </div>
-
-  <!-- Table Detail Modal -->
-  <div class="modal-overlay" id="table-detail-modal" style="display:none">
-    <div class="modal" id="table-detail-modal-content" style="width: 1500px; max-width: 95vw; transition: box-shadow 0.2s ease, border-color 0.2s ease;">
-      <div class="modal-header">
-        <h2>Tischdetails</h2>
-        <button class="modal-close" id="table-detail-close">✕</button>
-      </div>
-      <div class="modal-body">
-        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
-          <div style="flex: 1;" id="td-rename-wrap">
-            <label for="table-detail-rename">Tischnummer / Name</label>
-            <input type="text" id="table-detail-rename" placeholder="z.B. 1A, VIP, Haupttisch" />
-          </div>
-          <div style="flex: 0 0 auto;" id="td-seatcount-wrap">
-            <label for="table-detail-seatcount">Tischgröße</label>
-            <select id="table-detail-seatcount" style="width: 120px;">
-              <option value="7">7er Tisch</option>
-              <option value="8">8er Tisch</option>
-              <option value="10">10er Tisch</option>
-            </select>
-          </div>
-          <div style="display: flex; align-items: flex-end; gap: 16px;">
-            <label id="td-lbl-table-fixed" style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; white-space: nowrap; font-weight: 500; text-transform: none; letter-spacing: 0; margin-bottom: 0;">
-              <input type="checkbox" id="table-detail-table-fixed" style="margin:0; cursor:pointer; width:14px; height:14px; accent-color:#22c55e;"> Gäste platziert
-            </label>
-            <label id="td-lbl-seat-fixed" style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; white-space: nowrap; font-weight: 500; text-transform: none; letter-spacing: 0; margin-bottom: 0;">
-              <input type="checkbox" id="table-detail-fixed" style="margin:0; cursor:pointer; width:14px; height:14px; accent-color:#22c55e;"> Plätze fixiert
-            </label>
-            <button class="btn btn-sm edit-mode-toggle" id="btn-rotate-table" title="Tisch um 90° drehen" style="display:none;">↻ Drehen</button>
-            <button class="btn btn-sm edit-mode-toggle" id="btn-edit-mode" title="Plätze aktivieren/deaktivieren">🔧 Bearbeitungsmodus</button>
-            <button class="btn btn-accent" id="table-detail-save">Name aktualisieren</button>
-            <button class="btn btn-danger" id="table-detail-remove">🗑️ Tisch entfernen</button>
-          </div>
-        </div>
-        <div style="display: flex; gap: 32px; align-items: flex-start;">
-          <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
-            <div style="display: flex; gap: 8px; justify-content: center; align-items: center; background: rgba(0,0,0,0.1); padding: 4px; border-radius: 6px;">
-              <button class="btn btn-sm" id="btn-zoom-out" style="padding: 2px 8px;">-</button>
-              <span id="zoom-level" style="font-size: 0.8rem; font-family: monospace; width: 45px; text-align: center;">100%</span>
-              <button class="btn btn-sm" id="btn-zoom-in" style="padding: 2px 8px;">+</button>
-              <button class="btn btn-sm" id="btn-zoom-fit" style="padding: 2px 8px;">Fit</button>
-            </div>
-            <div class="table-detail-svg-container" id="table-detail-svg-container"
-              style="display: flex; justify-content: center; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 8px; overflow: hidden;">
-            </div>
-          </div>
-          <div style="flex: 1.6; min-width: 750px;" id="table-detail-right-panel">
-            <h3
-              style="font-size: 0.9rem; font-weight: 600; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">
-              Zugewiesene Gäste</h3>
-            <div id="table-detail-guests" style="max-height: 520px; overflow-y: auto; padding-right: 4px;"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- Dynamic Modals Container -->
+  <div id="modal-container"></div>
 
   <!-- Tooltip -->
   <div class="seat-tooltip" id="seat-tooltip" style="display:none"></div>
 
-  <!-- Blueprint Builder Modal -->
-  <div class="modal-overlay" id="blueprint-builder-modal" style="display:none">
-    <div class="modal blueprint-builder-modal-content">
-      <div class="modal-header">
-        <h2>Tischvorlage erstellen</h2>
-        <button class="modal-close" id="blueprint-builder-close">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="blueprint-builder-layout">
-          <!-- Left: controls -->
-          <div class="blueprint-builder-controls">
-            <div class="bp-field">
-              <label>Name</label>
-              <input type="text" id="bp-name" placeholder="z.B. Brauttisch" class="searchable-picker-input" style="width: 100%; box-sizing: border-box;">
-            </div>
-            <div class="bp-field">
-              <label>Form</label>
-              <div class="bp-shape-toggle">
-                <button class="btn btn-sm bp-shape-btn active" id="bp-shape-circle" data-shape="circle">○ Kreis</button>
-                <button class="btn btn-sm bp-shape-btn" id="bp-shape-rect" data-shape="rectangle">▭ Rechteck</button>
-              </div>
-            </div>
-            <div class="bp-field" id="bp-circle-fields">
-              <label>Plätze</label>
-              <input type="number" id="bp-seat-count" min="3" max="24" value="8" class="searchable-picker-input" style="width: 80px;">
-            </div>
-            <div class="bp-field bp-rect-only" id="bp-rect-fields" style="display: none;">
-              <label>Plätze Längsseite / Querseite</label>
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <input type="number" id="bp-seats-long" min="1" max="10" value="3" class="searchable-picker-input" style="width: 70px;">
-                <span style="color: var(--text-muted); line-height: 32px;">×</span>
-                <input type="number" id="bp-seats-short" min="0" max="10" value="1" class="searchable-picker-input" style="width: 70px;">
-              </div>
-              <span style="font-size: 0.7rem; color: var(--text-muted);">Gesamt: <span id="bp-total-display">8</span> Plätze</span>
-            </div>
-            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 12px;">Klicke auf Plätze in der Vorschau, um sie zu deaktivieren.</p>
-            <div style="display: flex; gap: 8px; margin-top: 20px;">
-              <button class="btn btn-accent btn-sm" id="bp-save">Vorlage erstellen</button>
-              <button class="btn btn-sm" id="bp-cancel">Abbrechen</button>
-            </div>
-            <!-- Existing blueprints -->
-            <div id="bp-existing-list" style="margin-top: 20px;"></div>
-          </div>
-          <!-- Right: preview -->
-          <div class="blueprint-builder-preview" id="bp-preview">
-            <!-- SVG rendered by JS -->
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script src="app.js"></script>
-
-  <!-- Print: individual table pages rendered here (outside #app to avoid overflow:hidden clipping) -->
+  <!-- Print: individual table pages rendered here -->
   <div id="print-table-pages" class="print-only"></div>
+
+  <!-- Main ES Module Entry Point -->
+  <script type="module" src="js/app.js"></script>
 </body>
 
 </html>

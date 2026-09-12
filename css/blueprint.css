@@ -1,0 +1,187 @@
+/* ===== Blueprint Builder Modal & Buttons ===== */
+
+.blueprint-builder-modal-content {
+  width: 740px;
+  max-width: 95vw;
+}
+
+.blueprint-builder-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.blueprint-builder-controls {
+  flex: 0 0 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.blueprint-builder-preview {
+  flex: 1;
+  min-height: 340px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+.bp-field label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.bp-shape-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+.bp-shape-btn {
+  flex: 1;
+  text-align: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.bp-shape-btn.active {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: #fff !important;
+}
+
+/* ── Custom Blueprint Toolbar Buttons ── */
+.custom-blueprint-btn {
+  background: rgba(139, 92, 246, 0.12) !important;
+  border-color: rgba(139, 92, 246, 0.3) !important;
+  color: var(--accent) !important;
+  font-weight: 600;
+}
+
+.custom-blueprint-btn:hover {
+  background: rgba(139, 92, 246, 0.25) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.2);
+}
+
+
+/* ── Existing Blueprints List (Slim & Compact) ── */
+.bp-existing-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.bp-existing-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-height: 28px;
+  box-sizing: border-box;
+}
+
+.bp-existing-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.bp-existing-item.active {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: var(--accent);
+}
+
+.bp-existing-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.bp-existing-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
+}
+
+.bp-existing-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.bp-existing-badge {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.3;
+  flex-shrink: 0;
+}
+
+.bp-existing-del-btn {
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  padding: 1px 4px;
+  cursor: pointer;
+  font-size: 0.72rem;
+  line-height: 1;
+  margin-left: 4px;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.bp-existing-del-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.bp-existing-item.in-use {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.bp-existing-item.in-use:hover {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: var(--border-color);
+}
+
+.bp-existing-lock {
+  font-size: 0.72rem;
+  opacity: 0.5;
+  margin-left: 4px;
+  flex-shrink: 0;
+  user-select: none;
+  cursor: not-allowed;
+}
+
+
+
+

@@ -5,19 +5,23 @@ Interactive wedding seating plan manager built with vanilla HTML/CSS/JS and a Py
 ## Tech Stack
 
 - **Frontend:** Single-page app — `index.html`, `app.js` (~2500 LOC), `style.css` (~1720 LOC). No build step, no framework. Uses the Inter font via Google Fonts.
-- **Backend:** `server.py` — a minimal Python `http.server` that serves static files and exposes a REST API (`GET/POST /api/state`) to persist all state in `sitzplan_state.json`.
-- **Startup:** `start.sh` — kills any existing server, ensures the state file exists, and launches `python3 server.py` on port 8000.
+- **Backend:** `server.py` — a minimal Python `http.server` that serves static files and exposes REST APIs (`/api/state`, `/api/venues`) to persist venue states in the `states/` folder.
+- **Startup:** `start.sh` — kills any existing server, ensures the `states/` directory exists, and launches `python3 server.py` on port 8000.
 
 ## Data Model (`state`)
 
-All application state lives in a single JS object persisted as JSON:
+All application state lives in a venue-specific JS object persisted as JSON under `states/<VenueName>.json`:
 
 | Field             | Type       | Description                                                                             |
 | ----------------- | ---------- | --------------------------------------------------------------------------------------- |
+| `venueName`       | `string`   | Name of the venue (e.g. "Hauptsaal", "Agape", "Garten").                                |
+| `venueWidth`      | `number`   | Venue width in cm (1 point = 1 cm, e.g. 1500 for 15.0 m).                               |
+| `venueHeight`     | `number`   | Venue length/depth in cm (1 point = 1 cm, e.g. 1000 for 10.0 m).                         |
 | `guests`          | `Guest[]`  | All guests. Each has `id`, `firstName`, `lastName`, `dietId`, `needsHighChair`, `age`, `tableId`, `seatNumber`. |
 | `dietOptions`     | `Diet[]`   | Configurable diet/allergy options. Each has `id`, `name`, `color`.                      |
 | `tables`          | `Table[]`  | All tables. Each has `id`, `number` (display label), `seatCount`, `x`, `y` (canvas pos), `fixed` (boolean), `seatsFixed` (boolean). |
 | `families`        | `Family[]` | Family groups. Each has `id`, `name`, `nameSourceGuestId`, `memberIds[]`.               |
+| `blueprints`      | `Blueprint[]` | Saved table template blueprints.                                                     |
 | `nextTableNumber` | `number`   | Legacy counter (actual numbering now uses gap-filling logic).                            |
 
 ### Guest Properties
@@ -43,8 +47,10 @@ The app has a two-panel layout: a **Venue Panel** (left) and a **Guest Panel** (
 **Layout:** Venue SVG on the left, narrow guest list on the right (fixed 480px width).
 
 #### Venue Canvas (SVG)
-- Renders all tables as draggable circular groups on a 1200×700 SVG canvas with a dot grid.
-- Each table shows a center circle with the table number and surrounding seat circles.
+- Renders all tables as draggable circular/rectangular groups on an SVG canvas with a 50cm / 1m dot grid.
+- **1 coordinate point = 1 cm**: Dimensions align 1:1 with table sizes configured in the Blueprint Builder (`seatR = 30` cm).
+- **Configurable Venue Size**: Set in cm / meters via the header button `📐` or the venue dropdown menu. Cannot shrink below the bounding envelope of placed tables.
+- Each table shows a center circle or rectangle with the table number/name and surrounding seats.
 - **Seats** are colored by diet (diet color fill) or left empty (hollow). High-chair seats render as rounded squares instead of circles.
 - **`table.fixed`** → table center circle gets a green border + fill tint.
 - **`table.seatsFixed`** → all seat circles/rects get green borders.
@@ -52,9 +58,9 @@ The app has a two-panel layout: a **Venue Panel** (left) and a **Guest Panel** (
 - **Click → Table Detail Modal** (see below).
 - **Hover tooltips on seats:** guest name, table/seat number, diet, and high-chair status.
 - **Hover tooltip on table center circle:** compact list of all seated guests (seat # · Name), sorted by seat number. Appears to the right of the table circle. Not shown for empty tables.
-- **Legends** (top-right of canvas):
+- **Legends** (top-right overlay, constant screen size decoupled from 1cm venue scale):
   - *Diet legend* — color swatches for all diets in use on seated guests.
-  - *Seat-type legend* — circle = normal seat, square = Hochstuhl (high chair).
+  - *Seat-type legend* — normal seat + Hochstuhl (high chair).
   - *Age summary legend* — counts of guests by age category with a total.
 
 #### Guest List (grouped by table)
@@ -138,10 +144,9 @@ Triggered by the **"🖨️ Venue drucken"** button in the header (`window.print
 The print stylesheet (`@media print`) orchestrates a multi-page document:
 
 #### Page 1 — Venue Overview
-- The full venue SVG is printed in **landscape** orientation, filling 100vw × 98vh.
-- The `beforeprint` event handler **crops the SVG viewBox** tightly around the actual tables (with 80px padding) and extends it to include the legends.
-- **Color mapping for paper:** Dark-mode fills become white/light-grey; table centers (both normal and `fixed`) become `#f3f4f6`; seat borders (both normal and `seatsFixed`) become `#d1d5db`; text becomes `#374151`; legend backgrounds become white with light borders. Diet colors are preserved with `print-color-adjust: exact`.
-- The `afterprint` handler restores the original viewBox and legend positions.
+- The `beforeprint` event handler **crops the SVG viewBox** tightly around the actual tables (with 80px padding).
+- **Color mapping for paper:** Dark-mode fills become white/light-grey; table centers (both normal and `fixed`) become `#f3f4f6`; seat borders (both normal and `seatsFixed`) become `#d1d5db`; text becomes `#374151`; legend overlay prints crisp with white background and light borders. Diet colors are preserved with `print-color-adjust: exact`.
+- The `afterprint` handler restores the original viewBox.
 
 #### Pages 2–N — Per-Table Detail Pages
 - One page per table (sorted by table number), generated by `renderPrintTablePages()` into a hidden `#print-table-pages` div.
@@ -167,6 +172,12 @@ The print stylesheet (`@media print`) orchestrates a multi-page document:
 - Add new diet: name input + color picker. Colors cycle through a preset palette of 10 harmonious colors.
 - Removing a diet resets all guests using it to "None".
 
+### Blueprint Builder Modal (Tischvorlagen)
+- **Direct Seat Disabling:** Seat editing in the blueprint preview is always active. Clicking seats toggles them disabled (ghosted with ✕). Disabled seats are preserved when tweaking dimensions and carry over to placed tables.
+- **Placed Table Reactivation:** Tables created from blueprints inherit `disabledSeats`. When opened in the Table Detail Modal, activating Bearbeitungsmodus allows clicking disabled seats to re-enable them at any time.
+- **Click-to-Edit Vorlagen:** Saved templates in the "Vorhandene Vorlagen" list are interactive. Clicking any blueprint loads its full configuration (name, shape, dimensions, disabled seats) into the editor, switches the save button to "Änderungen speichern", and highlights the active template. A "+ Neu" button allows resetting back to creating a new blueprint.
+- **In-Use Protection:** Editing and deleting a template is only possible if there is currently no table of that type on the venue canvas. Templates in use display a lock icon (🔒) and disable click/delete interactions.
+
 ---
 
 ## Other Features
@@ -182,11 +193,23 @@ The print stylesheet (`@media print`) orchestrates a multi-page document:
 - **Dissolve:** Removes the family grouping; all guests become independent.
 - **Split detection:** In split venue view, if family members are at different tables, the pill label shows "split tables" as a warning.
 
-### Persistence
-- Every mutation calls `saveState()` → `POST /api/state` with the full state JSON.
-- On load, `loadState()` → `GET /api/state` reads from `sitzplan_state.json`.
+### Multi-Venue Persistence & Storage
+- **Directory:** All state files live inside the `states/` directory (e.g. `states/Hauptsaal.json`, `states/Agape.json`).
+- **Active Venue Tracker:** `states/_active.json` stores the currently active venue name.
+- **REST Endpoints:**
+  - `GET /api/venues` — lists all venues with summary stats (`tableCount`, `guestCount`) and `activeVenue`.
+  - `GET /api/state?venue=<name>` — loads full state JSON for the specified venue (or active venue if omitted).
+  - `POST /api/state?venue=<name>` — persists full state JSON for the specified venue.
+  - `POST /api/venues/create` — creates a new venue state file (optional cloned guests/families/diets with unassigned seats).
+  - `POST /api/venues/rename` — renames a venue state file and updates its internal `venueName`.
+  - `POST /api/venues/delete` — deletes a venue state file (blocked if only 1 venue exists).
+  - `POST /api/venues/active` — updates the active venue selection.
+- Every state mutation triggers `saveState()` → `POST /api/state?venue=...`.
+- Switching venues calls `switchVenue(venueName)` → reloads state and re-renders venue canvas, toolbars, guest lists, and print layouts.
 
 ### UI State (not persisted)
+- `venues` — list of available venues and their stats.
+- `activeVenue` — current venue name.
 - `collapsedGroups` — which table groups are collapsed in split view.
 - `expandedGuests` / `expandedGuestsDetail` — which guest cards are expanded (unused now since detail view is always inline).
 - `expandedFamilies` — which family cards are expanded in full table view.
@@ -197,16 +220,45 @@ The print stylesheet (`@media print`) orchestrates a multi-page document:
 
 ---
 
-## File Overview
+## Modular Architecture Overview
 
-| File                     | Purpose                                      |
-| ------------------------ | -------------------------------------------- |
-| `index.html`             | DOM structure, modals, hidden print container |
-| `app.js`                 | All application logic (IIFE, ~2530 lines)    |
-| `style.css`              | Dark-mode styles + print stylesheet          |
-| `server.py`              | Python HTTP server with JSON persistence API |
-| `start.sh`               | Startup script (kill old, ensure state, run) |
-| `sitzplan_state.json`    | Persisted application state                  |
-| `guests.csv`             | Example CSV import file                      |
-| `sitzplan.jpeg`          | Reference venue layout image                 |
-| `instructions.md`        | Original feature requirements                |
+### CSS Modules (`css/`)
+- `base.css`: CSS reset, design tokens/variables, base form controls & button styles.
+- `layout.css`: App header, panel containers, responsive breakpoints.
+- `venue-selector.css`: Venue dropdown selector in header, badge styles, create/rename modal dialogs.
+- `venue.css`: Canvas container, SVG styles, table circles/rects, seats, tooltips.
+- `guests.css`: Split-view accordion groups, compact cards, family blocks, spreadsheet table.
+- `modals.css`: Modal backdrops, shared modal containers, searchable picker component.
+- `table-detail.css`: Table detail modal layout, zoom bar, edit-mode toggles.
+- `blueprint.css`: Blueprint builder modal layout, dimension controls, toolbar chips.
+- `print.css`: Multi-page print layout, paper color mapping.
+- `style.css`: Master `@import` registry.
+
+### JS Modules (`js/`)
+- `app.js`: Clean ~50 LOC coordinator bootstrap and initial state loader.
+- `core/`:
+  - `state.js`: Single source of truth (`state`, `uiState`), multi-venue REST API (`loadState`, `saveState`, `switchVenue`, `createVenue`, `renameVenue`, `deleteVenue`).
+  - `events.js`: Event pub/sub bus (`state:loaded`, `venues:updated`, etc.).
+  - `constants.js`: Canvas dimensions, default diet & age options, preset color palettes.
+- `utils/`:
+  - `dom.js`: `$`, `escHtml`, `getAdjustedFontSize`.
+  - `geometry.js`: Trigonometry, orbits, table center sizes, collision detection, empty space finder.
+  - `seating.js`: Seating capacity queries, table assignment, seat number active sets.
+  - `family.js`: Family CRUD operations and membership resolution.
+- `components/`:
+  - `searchable-picker.js`: Reusable guest and group picker dropdown.
+- `features/`:
+  - `venue/`: `venue-selector.js`, `venue-canvas.js`, `venue-toolbar.js`, `venue-tooltips.js`.
+  - `guest-list/`: `guest-list.js`, `split-view.js`, `table-view.js`, `guest-row.js`, `add-guest-modal.js`.
+  - `table-detail/`: `table-detail-modal.js`, `table-detail-svg.js`, `table-detail-edit.js`.
+  - `blueprint-builder/`: `blueprint-modal.js`, `blueprint-preview.js`.
+  - `config-modals/`: `diet-modal.js`, `age-modal.js`.
+  - `print/`: `print-manager.js`, `print-pages.js`.
+
+### Backend & Environment
+- `server.py`: Python HTTP server with JSON persistence & venue management REST API (`/api/state`, `/api/venues`).
+- `start.sh` / `start.command` / `start.bat`: Startup scripts for Linux, macOS, and Windows that launch the server and open the browser.
+- `install.sh` / `install.command` / `install.bat`: One-time setup scripts for Linux, macOS, and Windows.
+- `states/`: Dedicated directory for persisted venue state files (`states/<VenueName>.json`) and `states/_active.json`.
+- `index.html`: Streamlined host application shell (~90 LOC).
+
