@@ -84,65 +84,82 @@ export function renderFamilyGroupBlock(family, memberIdSubset, isTableView, onRe
   } else {
     // Full Table View Mode
     block.classList.add('family-group-block-table');
-    block.style.paddingTop = '20px';
+    block.style.paddingTop = '14px';
 
-    const pillWrapFull = document.createElement('div');
-    pillWrapFull.className = 'family-group-pill-wrap';
-    pillWrapFull.title = 'Suchen, um der Familie ein weiteres Mitglied hinzuzufügen';
+    // Left pill: Family Name Badge
+    const famPill = document.createElement('div');
+    famPill.className = 'family-group-pill';
+    famPill.innerHTML = `<span class="family-group-pill-icon">👨‍👩‍👧‍👦</span> <span class="family-group-pill-label">Familie ${escHtml(family.name)} (${members.length})</span>`;
+    block.appendChild(famPill);
 
-    const excludeIds = family.memberIds.slice();
-    const picker = makeSearchableGuestPicker('👨‍👩‍👧‍👦 Mitglied hinzufügen...', excludeIds, selectedId => {
-      addToFamily(family.id, selectedId);
-    }, true);
+    // Right actions container
+    const rightActions = document.createElement('div');
+    rightActions.className = 'family-group-actions-right';
+    rightActions.style.cssText = 'position: absolute; top: -11px; right: 8px; display: flex; align-items: center; gap: 6px; z-index: 5;';
 
-    const pickerInput = picker.querySelector('input');
-    if (pickerInput) {
-      pickerInput.style.background = 'transparent';
-      pickerInput.style.border = 'none';
-      pickerInput.style.padding = '0 6px';
-      pickerInput.style.margin = '0';
-      pickerInput.style.fontSize = '0.7rem';
-      pickerInput.style.fontWeight = '600';
-      pickerInput.style.color = 'rgba(139, 92, 246, 0.8)';
-      pickerInput.style.width = '190px';
-      pickerInput.style.outline = 'none';
-    }
+    // Subtle "+ Mitglied" button
+    const addMemberBtn = document.createElement('button');
+    addMemberBtn.className = 'btn btn-sm family-header-action-btn';
+    addMemberBtn.textContent = '➕ Mitglied';
+    addMemberBtn.title = 'Gast zu dieser Familie hinzufügen';
+    rightActions.appendChild(addMemberBtn);
 
-    pillWrapFull.appendChild(picker);
-    block.appendChild(pillWrapFull);
+    let pickerWrap = null;
+    addMemberBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (pickerWrap) return;
 
+      addMemberBtn.style.display = 'none';
+
+      const excludeIds = family.memberIds.slice();
+      const picker = makeSearchableGuestPicker('Gast suchen…', excludeIds, selectedId => {
+        addToFamily(family.id, selectedId);
+      }, true);
+
+      const pInput = picker.querySelector('input');
+      if (pInput) {
+        pInput.style.cssText = 'background: var(--bg-secondary); border: 1px solid rgba(139,92,246,0.5); border-radius: 12px; padding: 2px 8px; font-size: 0.68rem; width: 140px; color: var(--text-primary); outline: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);';
+        setTimeout(() => pInput.focus(), 20);
+      }
+
+      const closePickerBtn = document.createElement('button');
+      closePickerBtn.textContent = '✕';
+      closePickerBtn.style.cssText = 'background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.75rem; padding:0 4px;';
+      closePickerBtn.title = 'Abbrechen';
+
+      pickerWrap = document.createElement('div');
+      pickerWrap.style.cssText = 'display:flex; align-items:center; gap:3px;';
+      pickerWrap.appendChild(picker);
+      pickerWrap.appendChild(closePickerBtn);
+
+      const closePicker = () => {
+        if (pickerWrap) {
+          pickerWrap.remove();
+          pickerWrap = null;
+        }
+        addMemberBtn.style.display = 'inline-flex';
+      };
+
+      closePickerBtn.addEventListener('click', e2 => {
+        e2.stopPropagation();
+        closePicker();
+      });
+
+      rightActions.insertBefore(pickerWrap, dissolveBtn);
+    });
+
+    // Dissolve button
     const dissolveBtn = document.createElement('button');
-    dissolveBtn.className = 'btn btn-sm family-dissolve-btn';
-    dissolveBtn.textContent = '✕ Familie auflösen';
+    dissolveBtn.className = 'btn btn-sm family-header-action-btn family-dissolve-btn';
+    dissolveBtn.textContent = '✕ Auflösen';
     dissolveBtn.title = 'Familie auflösen (alle Mitglieder werden wieder als Einzelpersonen geführt)';
-    dissolveBtn.style.position = 'absolute';
-    dissolveBtn.style.top = '-12px';
-    dissolveBtn.style.right = '8px';
-    dissolveBtn.style.background = 'var(--bg-secondary)';
-    dissolveBtn.style.border = '1px solid rgba(139, 92, 246, 0.3)';
-    dissolveBtn.style.borderRadius = '20px';
-    dissolveBtn.style.padding = '2px 8px';
-    dissolveBtn.style.fontSize = '0.65rem';
-    dissolveBtn.style.color = 'var(--text-secondary)';
-    dissolveBtn.style.fontWeight = '600';
-    dissolveBtn.style.zIndex = '5';
-    dissolveBtn.style.transition = 'all 0.15s ease';
-
-    dissolveBtn.addEventListener('mouseenter', () => {
-      dissolveBtn.style.background = 'rgba(239, 68, 68, 0.1)';
-      dissolveBtn.style.borderColor = 'rgba(239, 68, 68, 0.3)';
-      dissolveBtn.style.color = 'var(--danger)';
-    });
-    dissolveBtn.addEventListener('mouseleave', () => {
-      dissolveBtn.style.background = 'var(--bg-secondary)';
-      dissolveBtn.style.borderColor = 'rgba(139, 92, 246, 0.3)';
-      dissolveBtn.style.color = 'var(--text-secondary)';
-    });
     dissolveBtn.addEventListener('click', e => {
       e.stopPropagation();
       dissolveFamily(family.id);
     });
-    block.appendChild(dissolveBtn);
+    rightActions.appendChild(dissolveBtn);
+
+    block.appendChild(rightActions);
   }
 
   members.forEach(guest => {

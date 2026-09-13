@@ -14,6 +14,7 @@ import { renderTableDetailSVG } from './features/table-detail/table-detail-svg.j
 import { initBlueprintBuilder, renderBlueprintButtons } from './features/blueprint-builder/blueprint-modal.js';
 import { initDietModal } from './features/config-modals/diet-modal.js';
 import { initAgeModal } from './features/config-modals/age-modal.js';
+import { initSettingsModal } from './features/config-modals/settings-modal.js';
 import { initPrintManager } from './features/print/print-manager.js';
 import { initVenueSelector } from './features/venue/venue-selector.js';
 import { initVenueSizeControls } from './features/venue/venue-size-modal.js';
@@ -42,6 +43,7 @@ function init() {
   initVenueSizeControls();
   initDietModal();
   initAgeModal();
+  initSettingsModal();
   initBlueprintBuilder();
   initTableDetailModal();
   initGuestList();

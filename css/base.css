@@ -95,8 +95,7 @@ body {
 
 /* ===== Form Elements ===== */
 select,
-input[type="text"],
-input[type="color"] {
+input[type="text"] {
   font-family: var(--font);
   font-size: 0.78rem;
   padding: 6px 10px;
@@ -139,9 +138,15 @@ option {
 }
 
 input[type="color"] {
+  font-family: var(--font);
   padding: 2px;
   height: 34px;
+  width: 44px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 label {

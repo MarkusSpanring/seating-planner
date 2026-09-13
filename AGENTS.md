@@ -85,31 +85,37 @@ The app has a two-panel layout: a **Venue Panel** (left) and a **Guest Panel** (
 
 Triggered by clicking **"Venue ausblenden"** (hide venue). The venue SVG and toolbar disappear, and the guest panel expands to fill the full width.
 
-**Additional header controls appear:**
-- **"Familien gruppieren" toggle** — when on, family members are rendered as collapsible family cards at the top of the list; when off (or when a filter is active), all guests are shown individually.
-- **Name filter** — text input that filters guests by first/last name. Automatically disables family grouping while filtering.
+**Header controls:**
+- **Name filter** — text input that filters guests by first/last name.
 - **"➕ Gast hinzufügen"** — opens the Add Guest modal.
+- **"⚙️ Einstellungen"** — opens the unified Settings Modal (Diäten, Altersgruppen, CSV-Export/Import).
 
-**Guest list layout:** A spreadsheet-like table with a sticky column header row:
+**Spreadsheet Grid layout:** An Excel-like interactive table with a sticky column header row:
 
-| Vorname | Nachname | Tisch | Platz | HS  | Alter | Diät | Familie |
-| ------- | -------- | ----- | ----- | --- | ----- | ---- | ------- |
+| Vorname | Nachname | Adresse | Tisch | Platz | HS  | Alter | Diät |
+| ------- | -------- | ------- | ----- | ----- | --- | ----- | ---- |
 
-- **First / Last name:** Inline-editable text inputs (save on blur or Enter, revert on Escape).
+- **Keyboard Navigation (2D Grid):**
+  - `ArrowDown` / `Enter`: Focuses the same column in the row below.
+  - `ArrowUp`: Focuses the same column in the row above.
+  - `ArrowRight`: Focuses the next cell to the right (at end of text input or on dropdowns).
+  - `ArrowLeft`: Focuses the previous cell to the left (at start of text input or on dropdowns).
+  - `Tab` / `Shift+Tab`: Natural horizontal cell traversal with row wrapping.
+  - Focus ring: active cell displays a crisp purple focus ring.
+- **Quick-Add Empty Row:**
+  - A persistent empty row (`*`) at the bottom of the table.
+  - As soon as the user starts typing in Vorname or Nachname, a new guest record is automatically instantiated, and a fresh blank row is immediately spawned below it for continuous high-speed data entry.
+- **Family Distinguishability:**
+  - Family members are grouped together within distinct container blocks with a pill label (`👨‍👩‍👧‍👦 Familie <Name> (<Count>)`), an integrated `➕ Mitglied` action to add members, and `✕ Auflösen` action.
+  - Each family row features a distinct purple left-accent stripe (`border-left: 3px solid #8b5cf6`) and soft tinted background.
+  - Single guests feature a subtle `👨‍👩‍👧‍👦` link action to create or join a family on-demand.
+- **First / Last name / Adresse:** Inline-editable text inputs (save on blur or Enter, revert on Escape).
 - **Tisch (Table):** Dropdown of available tables (only tables with enough free seats are shown).
-- **Platz (Seat):** Dropdown of seats 1–N. Already-taken seats are marked with `⇄`. Selecting an occupied seat triggers a **seat swap** — the previous occupant gets the current guest's old seat.
+- **Platz (Seat):** Dropdown of seats 1–N. Already-taken seats are marked with `⇄`. Selecting an occupied seat triggers a **seat swap**.
 - **HS (High Chair):** Yes/No dropdown.
-- **Alter (Age):** Dropdown: Erwachsen, < 3 J., < 6 J., < 12 J.
+- **Alter (Age):** Dropdown of configured age groups.
 - **Diät (Diet):** Dropdown of all configured diet options.
-- **Familie (Family):** Either a searchable guest picker to create/link a family, or a static label if the guest is already in a family.
 - **🗑️ Delete button** per row (with confirmation).
-
-**Family cards** (when grouping is enabled):
-- Collapsible card with a 👨‍👩‍👧‍👦 icon, family name, and member count.
-- Expanded view shows all members in a sub-table with radio buttons to select the name-source member (the family's display name derives from this guest).
-- Each member row has a ✕ button to remove from family.
-- **Actions bar:** A searchable picker to add members, and a "Familie auflösen" (dissolve) button.
-- Families auto-dissolve when reduced to ≤ 1 member.
 
 ---
 
@@ -169,10 +175,11 @@ The print stylesheet (`@media print`) orchestrates a multi-page document:
 - Fields: Vorname, Nachname, Diät (dropdown), Hochstuhl (checkbox).
 - Opens only in full table view.
 
-### Diet Config Modal
-- Lists all diet options with color swatches; non-"None" options can be removed.
-- Add new diet: name input + color picker. Colors cycle through a preset palette of 10 harmonious colors.
-- Removing a diet resets all guests using it to "None".
+### Settings Modal (Einstellungen)
+- 2-column layout with sidebar tabs:
+  - **Diäten & Allergien:** Lists all configured diet options with swatches and deletion; form to create new diets with color picker.
+  - **Altersgruppen:** Lists all configured age groups; form to add new age groups.
+  - **Daten & CSV:** 1-click export of full guest list to CSV (Excel-compatible with BOM) and CSV file import.
 
 ### Blueprint Builder Modal (Tischvorlagen)
 - **Direct Seat Disabling:** Seat editing in the blueprint preview is always active. Clicking seats toggles them disabled (ghosted with ✕). Disabled seats are preserved when tweaking dimensions and carry over to placed tables.

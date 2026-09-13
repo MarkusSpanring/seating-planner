@@ -109,10 +109,16 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth)
   const leftContainer = document.createElement('div');
   leftContainer.className = 'guest-summary-left' + ((isDetailView && uiState.venueCollapsed) || forceFullWidth ? ' guest-summary-left-full' : '');
 
+  const guestFam = getFamilyForGuest(guest.id);
+  if (guestFam) {
+    card.classList.add('family-member-row');
+  }
+
   const firstNameInput = document.createElement('input');
   firstNameInput.type = 'text';
   firstNameInput.value = guest.firstName || '';
-  firstNameInput.className = 'name-input guest-col-firstname';
+  firstNameInput.className = 'name-input guest-col-firstname spreadsheet-cell-control';
+  firstNameInput.setAttribute('data-grid-col', '0');
   firstNameInput.placeholder = 'First';
   firstNameInput.title = 'Vorname bearbeiten (Enter zum Speichern, Esc zum Abbrechen)';
   firstNameInput.addEventListener('click', e => { e.stopPropagation(); });
@@ -124,20 +130,19 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth)
     }
   });
   firstNameInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-      firstNameInput.blur();
-    } else if (e.key === 'Escape') {
+    if (e.key === 'Escape') {
       firstNameInput.value = guest.firstName;
       firstNameInput.blur();
+      e.stopPropagation();
     }
-    e.stopPropagation();
   });
   leftContainer.appendChild(firstNameInput);
 
   const lastNameInput = document.createElement('input');
   lastNameInput.type = 'text';
   lastNameInput.value = guest.lastName || '';
-  lastNameInput.className = 'name-input guest-col-lastname';
+  lastNameInput.className = 'name-input guest-col-lastname spreadsheet-cell-control';
+  lastNameInput.setAttribute('data-grid-col', '1');
   lastNameInput.placeholder = 'Last';
   lastNameInput.title = 'Nachname bearbeiten (Enter zum Speichern, Esc zum Abbrechen)';
   lastNameInput.addEventListener('click', e => { e.stopPropagation(); });
@@ -149,13 +154,11 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth)
     }
   });
   lastNameInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-      lastNameInput.blur();
-    } else if (e.key === 'Escape') {
+    if (e.key === 'Escape') {
       lastNameInput.value = guest.lastName;
       lastNameInput.blur();
+      e.stopPropagation();
     }
-    e.stopPropagation();
   });
   leftContainer.appendChild(lastNameInput);
 
@@ -163,7 +166,8 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth)
     const addressInput = document.createElement('input');
     addressInput.type = 'text';
     addressInput.value = guest.address || '';
-    addressInput.className = 'name-input guest-col-address';
+    addressInput.className = 'name-input guest-col-address spreadsheet-cell-control';
+    addressInput.setAttribute('data-grid-col', '2');
     addressInput.placeholder = 'Adresse';
     addressInput.title = 'Adresse bearbeiten (Enter zum Speichern, Esc zum Abbrechen)';
     addressInput.addEventListener('click', e => { e.stopPropagation(); });
@@ -175,13 +179,11 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth)
       }
     });
     addressInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        addressInput.blur();
-      } else if (e.key === 'Escape') {
+      if (e.key === 'Escape') {
         addressInput.value = guest.address || '';
         addressInput.blur();
+        e.stopPropagation();
       }
-      e.stopPropagation();
     });
     leftContainer.appendChild(addressInput);
   }
@@ -200,7 +202,8 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth)
   tableCol.className = 'guest-col-table';
 
   const tableSel = document.createElement('select');
-  tableSel.className = 'inline-select';
+  tableSel.className = 'inline-select spreadsheet-cell-control';
+  tableSel.setAttribute('data-grid-col', '3');
   tableSel.title = 'Tisch für diesen Gast auswählen';
   tableOptions.forEach(opt => {
     const o = document.createElement('option');
@@ -234,7 +237,8 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth)
       });
     }
     const seatSel = document.createElement('select');
-    seatSel.className = 'inline-select';
+    seatSel.className = 'inline-select spreadsheet-cell-control';
+    seatSel.setAttribute('data-grid-col', '4');
     seatSel.title = 'Sitzplatz auswählen (⇄ markiert bereits belegte Plätze, die getauscht werden)';
     seatOptions.forEach(opt => {
       const o = document.createElement('option');
@@ -267,7 +271,8 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth)
     const hcCol = document.createElement('div');
     hcCol.className = 'guest-col-hc';
     const hcSel = document.createElement('select');
-    hcSel.className = 'inline-select';
+    hcSel.className = 'inline-select spreadsheet-cell-control';
+    hcSel.setAttribute('data-grid-col', '5');
     hcSel.title = 'Hochstuhl erforderlich (Ja / Nein)';
     const hcOptions = [
       { value: 'no', label: 'No' },
@@ -294,7 +299,8 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth)
     const ageCol = document.createElement('div');
     ageCol.className = 'guest-col-age';
     const ageSel = document.createElement('select');
-    ageSel.className = 'inline-select';
+    ageSel.className = 'inline-select spreadsheet-cell-control';
+    ageSel.setAttribute('data-grid-col', '6');
     ageSel.title = 'Altersgruppe auswählen';
     const currentAge = guest.age || 'age-adult';
     state.ageGroups.forEach(opt => {
@@ -317,7 +323,8 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth)
     const dietCol = document.createElement('div');
     dietCol.className = 'guest-col-diet';
     const dietSel = document.createElement('select');
-    dietSel.className = 'inline-select inline-diet-select';
+    dietSel.className = 'inline-select inline-diet-select spreadsheet-cell-control';
+    dietSel.setAttribute('data-grid-col', '7');
     dietSel.title = 'Ernährungsweise / Diät auswählen';
     state.dietOptions.forEach(d => {
       const o = document.createElement('option');
@@ -335,45 +342,6 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth)
     dietCol.appendChild(dietSel);
     leftContainer.appendChild(dietCol);
 
-    // Family Link Inline Select
-    if (!skipFamily) {
-      const guestFamInline = getFamilyForGuest(guest.id);
-      if (!guestFamInline) {
-        const famCol = document.createElement('div');
-        famCol.className = 'guest-col-family';
-        const picker = makeSearchableGuestPicker('Link…', [guest.id], selectedId => {
-          createFamily(guest.id, selectedId);
-        });
-        picker.title = 'Gast mit einer Familie oder einem anderen Gast verknüpfen';
-        famCol.appendChild(picker);
-        leftContainer.appendChild(famCol);
-      } else {
-        const famCol = document.createElement('div');
-        famCol.className = 'guest-col-family';
-        const famLabel = document.createElement('span');
-        famLabel.className = 'family-inline-label';
-        famLabel.textContent = guestFamInline.name;
-        famLabel.title = 'Familie: ' + guestFamInline.name;
-        famCol.appendChild(famLabel);
-        leftContainer.appendChild(famCol);
-      }
-    } else if (isDetailView && uiState.venueCollapsed) {
-      // In full-table view, add family label if member, or invisible placeholder so flex layout is aligned
-      const famCol = document.createElement('div');
-      famCol.className = 'guest-col-family';
-      const guestFamInline = getFamilyForGuest(guest.id);
-      if (guestFamInline) {
-        const famLabel = document.createElement('span');
-        famLabel.className = 'family-inline-label';
-        famLabel.textContent = guestFamInline.name;
-        famLabel.title = 'Familie: ' + guestFamInline.name;
-        famCol.appendChild(famLabel);
-      } else {
-        famCol.style.visibility = 'hidden';
-        famCol.setAttribute('aria-hidden', 'true');
-      }
-      leftContainer.appendChild(famCol);
-    }
   }
 
   nameRow.appendChild(leftContainer);
@@ -393,8 +361,43 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth)
   rightIcons.appendChild(dot);
 
   if (isDetailView) {
+    if (uiState.venueCollapsed && !getFamilyForGuest(guest.id)) {
+      const famBtn = document.createElement('button');
+      famBtn.className = 'btn btn-sm family-header-action-btn';
+      famBtn.innerHTML = '👨‍👩‍👧‍👦';
+      famBtn.title = 'Gast mit Familie oder anderem Gast verknüpfen';
+      famBtn.style.padding = '0px 4px';
+      famBtn.style.marginRight = '2px';
+      famBtn.style.fontSize = '0.72rem';
+      famBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const existingWrap = rightIcons.querySelector('.single-fam-picker-wrap');
+        if (existingWrap) {
+          existingWrap.remove();
+          return;
+        }
+        const pickerWrap = document.createElement('div');
+        pickerWrap.className = 'single-fam-picker-wrap';
+        pickerWrap.style.cssText = 'position:absolute; right:36px; z-index:10; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; padding:4px 6px; box-shadow:0 4px 14px rgba(0,0,0,0.4); display:flex; align-items:center; gap:4px;';
+        const picker = makeSearchableGuestPicker('Partner / Gast wählen…', [guest.id], selectedId => {
+          createFamily(guest.id, selectedId);
+        }, true);
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = '✕';
+        closeBtn.style.cssText = 'background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.75rem; padding:0 4px;';
+        closeBtn.addEventListener('click', ev => { ev.stopPropagation(); pickerWrap.remove(); });
+        pickerWrap.appendChild(picker);
+        pickerWrap.appendChild(closeBtn);
+        rightIcons.insertBefore(pickerWrap, famBtn);
+        const pInput = picker.querySelector('input');
+        if (pInput) setTimeout(() => pInput.focus(), 20);
+      });
+      rightIcons.appendChild(famBtn);
+    }
+
     const delBtn = document.createElement('button');
-    delBtn.className = 'btn btn-sm btn-danger guest-delete-btn';
+    delBtn.className = 'btn btn-sm btn-danger guest-delete-btn spreadsheet-cell-control';
+    delBtn.setAttribute('data-grid-col', '8');
     delBtn.innerHTML = '🗑️';
     delBtn.title = 'Gast endgültig löschen';
     delBtn.style.padding = '0px 4px';

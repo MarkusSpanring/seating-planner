@@ -35,12 +35,8 @@ export function toggleVenue() {
     if (fInput) fInput.style.display = 'inline-block';
     const addBtn = $('btn-add-guest');
     if (addBtn) addBtn.style.display = 'block';
-    const importBtn = $('btn-import');
-    if (importBtn) importBtn.style.display = 'inline-block';
-    const agesBtn = $('btn-ages');
-    if (agesBtn) agesBtn.style.display = 'inline-block';
-    const dietsBtn = $('btn-diets');
-    if (dietsBtn) dietsBtn.style.display = 'inline-block';
+    const settingsBtn = $('btn-settings');
+    if (settingsBtn) settingsBtn.style.display = 'inline-block';
     const exBtn = $('btn-expand-all');
     if (exBtn) exBtn.style.display = 'none';
   } else {
@@ -62,12 +58,8 @@ export function toggleVenue() {
     }
     const addBtn = $('btn-add-guest');
     if (addBtn) addBtn.style.display = 'none';
-    const importBtn = $('btn-import');
-    if (importBtn) importBtn.style.display = 'none';
-    const agesBtn = $('btn-ages');
-    if (agesBtn) agesBtn.style.display = 'none';
-    const dietsBtn = $('btn-diets');
-    if (dietsBtn) dietsBtn.style.display = 'none';
+    const settingsBtn = $('btn-settings');
+    if (settingsBtn) settingsBtn.style.display = 'none';
     const exBtn = $('btn-expand-all');
     if (exBtn) {
       exBtn.style.display = 'inline-flex';
