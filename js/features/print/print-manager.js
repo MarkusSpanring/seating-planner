@@ -1,7 +1,7 @@
 import { SEAT_R_CM } from '../../core/constants.js';
 import { state, uiState } from '../../core/state.js';
 import { $ } from '../../utils/dom.js';
-import { getTableBounds } from '../../utils/geometry.js';
+import { getTableBounds, getTableExtents } from '../../utils/geometry.js';
 import { renderPrintTablePages } from './print-pages.js';
 
 let savedViewBox = null;
@@ -22,18 +22,11 @@ export function initPrintManager() {
     const PAD = 80;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     state.tables.forEach(t => {
-      const b = getTableBounds(t, SEAT_R_CM);
-      if (b.isRect) {
-        minX = Math.min(minX, t.x - b.hw);
-        minY = Math.min(minY, t.y - b.hh);
-        maxX = Math.max(maxX, t.x + b.hw);
-        maxY = Math.max(maxY, t.y + b.hh);
-      } else {
-        minX = Math.min(minX, t.x - b.r);
-        minY = Math.min(minY, t.y - b.r);
-        maxX = Math.max(maxX, t.x + b.r);
-        maxY = Math.max(maxY, t.y + b.r);
-      }
+      const ext = getTableExtents(t, SEAT_R_CM);
+      minX = Math.min(minX, t.x + ext.minX);
+      minY = Math.min(minY, t.y + ext.minY);
+      maxX = Math.max(maxX, t.x + ext.maxX);
+      maxY = Math.max(maxY, t.y + ext.maxY);
     });
 
     const vx = minX - PAD;

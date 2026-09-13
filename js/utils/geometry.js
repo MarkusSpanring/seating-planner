@@ -134,32 +134,78 @@ export function getTrapezoidPoints(x, y, r) {
   ].join(' ');
 }
 
-export function getTableBounds(t, seatR = SEAT_R_CM) {
-  const scale = seatR / 30.0;
-  const margin = seatR * 0.3;
-  const pad = seatR + margin;
-  if (t.shape === 'rectangle' && t.seatsLong != null) {
-    const dims = computeRectSize(t.seatsLong, t.seatsShort || 0, seatR);
-    const actualW = Math.max(dims.w, (t.tableCustomW || 0) * scale);
-    const actualH = Math.max(dims.h, (t.tableCustomH || 0) * scale);
-    const halfW = actualW / 2;
-    const halfH = actualH / 2;
-    const sqR = seatR * 0.925;
-    const hasSeatsShort = (t.seatsShort || 0) > 0;
-    const hasSeatsLong = (t.seatsLong || 0) > 0;
-    const hw = (hasSeatsShort ? (halfW + pad + sqR) : halfW) + 8;
-    const hh = (hasSeatsLong ? (halfH + pad + sqR) : halfH) + 8;
-    return { type: 'rect', hw, hh };
-  } else {
-    const cr = t.tableCustomR != null ? t.tableCustomR * scale : null;
-    const autoOrbit = computeCircleOrbit(t.seatCount, seatR);
-    let orbit = autoOrbit;
-    if (cr != null && cr > 0) {
-      orbit = Math.max(orbit, cr + seatR + margin);
-    }
-    const r = orbit + seatR + 8;
-    return { type: 'circle', r };
+export function getTableExtents(t, seatR = SEAT_R_CM) {
+  if (!t || typeof t !== 'object') {
+    const r = typeof t === 'number' ? t : 50;
+    return { minX: -r, maxX: r, minY: -r, maxY: r };
   }
+  if (!t.seatCount && !t.shape && t.type) {
+    if (t.type === 'rect') {
+      return { minX: -t.hw, maxX: t.hw, minY: -t.hh, maxY: t.hh };
+    }
+    const r = t.r || 50;
+    return { minX: -r, maxX: r, minY: -r, maxY: r };
+  }
+
+  const centerGeo = getTableCenterSize(t, seatR, false);
+  let minX, maxX, minY, maxY;
+  if (centerGeo.type === 'rect') {
+    const hw = centerGeo.w / 2;
+    const hh = centerGeo.h / 2;
+    minX = -hw;
+    maxX = hw;
+    minY = -hh;
+    maxY = hh;
+  } else {
+    const r = centerGeo.r;
+    minX = -r;
+    maxX = r;
+    minY = -r;
+    maxY = r;
+  }
+
+  const sqR = seatR * 0.925;
+  const disabled = Array.isArray(t.disabledSeats) ? t.disabledSeats : [];
+  const seatPositions = getSeatPositions(
+    t.seatCount,
+    seatR,
+    t.shape,
+    t.seatsLong,
+    t.seatsShort,
+    t.tableCustomR,
+    t.tableCustomW,
+    t.tableCustomH
+  );
+
+  for (let i = 0; i < seatPositions.length; i++) {
+    const seat = seatPositions[i];
+    if (disabled.includes(seat.number)) continue;
+    minX = Math.min(minX, seat.x - sqR);
+    maxX = Math.max(maxX, seat.x + sqR);
+    minY = Math.min(minY, seat.y - sqR);
+    maxY = Math.max(maxY, seat.y + sqR);
+  }
+
+  return { minX, maxX, minY, maxY };
+}
+
+export function getTableBounds(t, seatR = SEAT_R_CM) {
+  const ext = getTableExtents(t, seatR);
+  const hw = Math.max(Math.abs(ext.minX), Math.abs(ext.maxX));
+  const hh = Math.max(Math.abs(ext.minY), Math.abs(ext.maxY));
+  const r = Math.max(hw, hh);
+  const isRect = t && t.shape === 'rectangle';
+  return {
+    type: isRect ? 'rect' : 'circle',
+    isRect,
+    hw,
+    hh,
+    r,
+    minX: ext.minX,
+    maxX: ext.maxX,
+    minY: ext.minY,
+    maxY: ext.maxY
+  };
 }
 
 export function getTablesEnvelope(tables = state.tables) {
@@ -180,19 +226,12 @@ export function getTablesEnvelope(tables = state.tables) {
   let minY = Infinity, maxY = -Infinity;
 
   tables.forEach(t => {
-    const b = getTableBounds(t, SEAT_R_CM);
-    let left, right, top, bottom;
-    if (b.type === 'rect') {
-      left = t.x - b.hw;
-      right = t.x + b.hw;
-      top = t.y - b.hh;
-      bottom = t.y + b.hh;
-    } else {
-      left = t.x - b.r;
-      right = t.x + b.r;
-      top = t.y - b.r;
-      bottom = t.y + b.r;
-    }
+    const ext = getTableExtents(t, SEAT_R_CM);
+    const left = t.x + ext.minX;
+    const right = t.x + ext.maxX;
+    const top = t.y + ext.minY;
+    const bottom = t.y + ext.maxY;
+
     if (left < minX) minX = left;
     if (right > maxX) maxX = right;
     if (top < minY) minY = top;
@@ -243,27 +282,125 @@ export function shapesOverlap(shapeA, ax, ay, shapeB, bx, by) {
 }
 
 export function getTableCollisionRadius(t) {
-  const b = getTableBounds(t);
-  return b.type === 'circle' ? b.r : Math.hypot(b.hw, b.hh);
+  const ext = getTableExtents(t);
+  return Math.max(Math.abs(ext.minX), Math.abs(ext.maxX), Math.abs(ext.minY), Math.abs(ext.maxY));
+}
+
+export function getTableComponents(table, seatR = SEAT_R_CM) {
+  if (!table || typeof table !== 'object') {
+    const r = typeof table === 'number' ? table : 50;
+    return [{ shape: { type: 'circle', r }, relX: 0, relY: 0, boundingR: r }];
+  }
+  if (!table.seatCount && !table.shape && table.type) {
+    const br = table.type === 'rect' ? Math.hypot(table.hw, table.hh) : (table.r || 50);
+    return [{ shape: table, relX: 0, relY: 0, boundingR: br }];
+  }
+
+  const components = [];
+  const sqR = seatR * 0.925;
+
+  // 1. Table center body
+  const centerGeo = getTableCenterSize(table, seatR, false);
+  if (centerGeo.type === 'rect') {
+    const hw = centerGeo.w / 2;
+    const hh = centerGeo.h / 2;
+    components.push({
+      shape: { type: 'rect', hw, hh },
+      relX: 0,
+      relY: 0,
+      boundingR: Math.hypot(hw, hh)
+    });
+  } else {
+    components.push({
+      shape: { type: 'circle', r: centerGeo.r },
+      relX: 0,
+      relY: 0,
+      boundingR: centerGeo.r
+    });
+  }
+
+  // 2. Enabled chairs
+  const disabled = Array.isArray(table.disabledSeats) ? table.disabledSeats : [];
+  const seatPositions = getSeatPositions(
+    table.seatCount,
+    seatR,
+    table.shape,
+    table.seatsLong,
+    table.seatsShort,
+    table.tableCustomR,
+    table.tableCustomW,
+    table.tableCustomH
+  );
+
+  for (let i = 0; i < seatPositions.length; i++) {
+    const seat = seatPositions[i];
+    if (disabled.includes(seat.number)) continue;
+
+    if (table.shape === 'rectangle') {
+      components.push({
+        shape: { type: 'rect', hw: sqR, hh: sqR },
+        relX: seat.x,
+        relY: seat.y,
+        boundingR: Math.hypot(seat.x, seat.y) + Math.SQRT2 * sqR
+      });
+    } else {
+      components.push({
+        shape: { type: 'circle', r: sqR },
+        relX: seat.x,
+        relY: seat.y,
+        boundingR: Math.hypot(seat.x, seat.y) + sqR
+      });
+    }
+  }
+
+  return components;
+}
+
+export function tablesOverlap(tableA, ax, ay, tableB, bx, by, seatR = SEAT_R_CM) {
+  const compA = getTableComponents(tableA, seatR);
+  const compB = getTableComponents(tableB, seatR);
+
+  // Broad-phase: check maximum bounding radius
+  let maxRadA = 0;
+  for (let i = 0; i < compA.length; i++) {
+    if (compA[i].boundingR > maxRadA) maxRadA = compA[i].boundingR;
+  }
+  let maxRadB = 0;
+  for (let j = 0; j < compB.length; j++) {
+    if (compB[j].boundingR > maxRadB) maxRadB = compB[j].boundingR;
+  }
+
+  const dx = ax - bx;
+  const dy = ay - by;
+  const rSum = maxRadA + maxRadB;
+  if (dx * dx + dy * dy >= rSum * rSum) {
+    return false;
+  }
+
+  // Narrow-phase: exact component collision
+  for (let i = 0; i < compA.length; i++) {
+    const ca = compA[i];
+    const posX_A = ax + ca.relX;
+    const posY_A = ay + ca.relY;
+
+    for (let j = 0; j < compB.length; j++) {
+      const cb = compB[j];
+      const posX_B = bx + cb.relX;
+      const posY_B = by + cb.relY;
+
+      if (shapesOverlap(ca.shape, posX_A, posY_A, cb.shape, posX_B, posY_B)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 export function isCollidingAt(x, y, tableOrBoundsOrRadius, excludeTableId, tables = state.tables) {
-  let movingBounds;
-  if (typeof tableOrBoundsOrRadius === 'number') {
-    movingBounds = { type: 'circle', r: tableOrBoundsOrRadius };
-  } else if (tableOrBoundsOrRadius && (tableOrBoundsOrRadius.type === 'circle' || tableOrBoundsOrRadius.type === 'rect')) {
-    movingBounds = tableOrBoundsOrRadius;
-  } else if (tableOrBoundsOrRadius && typeof tableOrBoundsOrRadius === 'object') {
-    movingBounds = getTableBounds(tableOrBoundsOrRadius);
-  } else {
-    movingBounds = { type: 'circle', r: 50 };
-  }
-
   for (let i = 0; i < tables.length; i++) {
     const t = tables[i];
     if (t.id === excludeTableId) continue;
-    const targetBounds = getTableBounds(t);
-    if (shapesOverlap(movingBounds, x, y, targetBounds, t.x, t.y)) {
+    if (tablesOverlap(tableOrBoundsOrRadius, x, y, t, t.x, t.y)) {
       return true;
     }
   }
@@ -271,7 +408,7 @@ export function isCollidingAt(x, y, tableOrBoundsOrRadius, excludeTableId, table
 }
 
 export function findEmptySpace(tempTable, tables = state.tables) {
-  const bounds = getTableBounds(tempTable, SEAT_R_CM);
+  const ext = getTableExtents(tempTable, SEAT_R_CM);
   const venueW = getVenueWidth();
   const venueH = getVenueHeight();
   const startX = venueW / 2;
@@ -281,12 +418,14 @@ export function findEmptySpace(tempTable, tables = state.tables) {
   const maxRadius = Math.max(venueW, venueH);
   const stepRadius = 40; // Outward step size in cm
 
-  const marginX = (bounds.type === 'rect' ? bounds.hw : bounds.r) + 25;
-  const marginY = (bounds.type === 'rect' ? bounds.hh : bounds.r) + 25;
+  const minLeft = -ext.minX + 25;
+  const maxRight = venueW - ext.maxX - 25;
+  const minTop = -ext.minY + 25;
+  const maxBottom = venueH - ext.maxY - 25;
 
   while (radius < maxRadius) {
     if (radius === 0) {
-      if (!isCollidingAt(startX, startY, bounds, null, tables)) {
+      if (!isCollidingAt(startX, startY, tempTable, null, tables)) {
         return { x: startX, y: startY };
       }
       radius += stepRadius;
@@ -300,11 +439,11 @@ export function findEmptySpace(tempTable, tables = state.tables) {
       const testX = startX + radius * Math.cos(angle);
       const testY = startY + radius * Math.sin(angle);
 
-      if (testX < marginX || testX > venueW - marginX || testY < marginY || testY > venueH - marginY) {
+      if (testX < minLeft || testX > maxRight || testY < minTop || testY > maxBottom) {
         continue;
       }
 
-      if (!isCollidingAt(testX, testY, bounds, null, tables)) {
+      if (!isCollidingAt(testX, testY, tempTable, null, tables)) {
         return { x: testX, y: testY };
       }
     }

@@ -8,6 +8,7 @@ import {
   getSeatPositions,
   getTrapezoidPoints,
   getTableBounds,
+  getTableExtents,
   getTableCollisionRadius,
   isCollidingAt
 } from '../../utils/geometry.js';
@@ -268,13 +269,11 @@ export function renderVenue() {
       uiState.dragState.moved = true;
     }
 
-    const bounds = getTableBounds(tbl, SEAT_R_CM);
-    const padX = bounds.type === 'rect' ? bounds.hw : bounds.r;
-    const padY = bounds.type === 'rect' ? bounds.hh : bounds.r;
+    const extents = getTableExtents(tbl, SEAT_R_CM);
     const currentVenueW = getVenueWidth();
     const currentVenueH = getVenueHeight();
-    newX = Math.max(padX, Math.min(currentVenueW - padX, newX));
-    newY = Math.max(padY, Math.min(currentVenueH - padY, newY));
+    newX = Math.max(-extents.minX, Math.min(currentVenueW - extents.maxX, newX));
+    newY = Math.max(-extents.minY, Math.min(currentVenueH - extents.maxY, newY));
 
     const collides = isCollidingAt(newX, newY, tbl, tbl.id);
 
