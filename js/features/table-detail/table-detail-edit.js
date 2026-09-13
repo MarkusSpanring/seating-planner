@@ -18,7 +18,6 @@ export function toggleEditMode() {
     'td-lbl-table-fixed',
     'td-lbl-seat-fixed',
     'table-detail-right-panel',
-    'table-detail-save',
     'table-detail-remove'
   ];
 

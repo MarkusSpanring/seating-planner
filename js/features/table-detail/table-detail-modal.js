@@ -128,6 +128,15 @@ export function updateTableDetailModalVisuals(tbl) {
     contentNode.style.border = '1px solid var(--border-color)';
     contentNode.style.boxShadow = '';
   }
+
+  const lblTableFixed = $('td-lbl-table-fixed');
+  if (lblTableFixed) {
+    lblTableFixed.classList.toggle('active', !!tbl.fixed);
+  }
+  const lblSeatFixed = $('td-lbl-seat-fixed');
+  if (lblSeatFixed) {
+    lblSeatFixed.classList.toggle('active', !!tbl.seatsFixed);
+  }
 }
 
 export function saveTableNumber() {
@@ -136,6 +145,7 @@ export function saveTableNumber() {
   if (!tbl) return;
 
   const input = $('table-detail-rename');
+  if (!input) return;
   const newNum = input.value.trim();
 
   if (newNum !== '' && newNum !== String(tbl.number)) {
@@ -147,10 +157,12 @@ export function saveTableNumber() {
     tbl.number = newNum;
 
     saveAndRender();
+    renderTableDetailSVG(tbl.id);
   }
 }
 
 export function closeTableDetailModal() {
+  saveTableNumber();
   $('table-detail-modal').style.display = 'none';
   uiState.currentEditingTableId = null;
   uiState.selectedDetailSeat = null; // clear swap
@@ -161,7 +173,7 @@ export function closeTableDetailModal() {
   const rotBtn = $('btn-rotate-table');
   if (rotBtn) rotBtn.style.display = 'none';
 
-  ['td-rename-wrap', 'td-seatcount-wrap', 'td-lbl-table-fixed', 'td-lbl-seat-fixed', 'table-detail-right-panel', 'table-detail-save', 'table-detail-remove'].forEach(id => {
+  ['td-rename-wrap', 'td-seatcount-wrap', 'td-lbl-table-fixed', 'td-lbl-seat-fixed', 'table-detail-right-panel', 'table-detail-remove'].forEach(id => {
     const el = $(id);
     if (el) el.classList.remove('edit-mode-disabled');
   });
@@ -214,36 +226,50 @@ function mountTableDetailModal() {
         </div>
         <div class="modal-body">
           <div class="table-detail-header-controls">
-            <div style="flex: 1;" id="td-rename-wrap">
-              <label for="table-detail-rename">Tischnummer / Name</label>
-              <input type="text" id="table-detail-rename" placeholder="z.B. 1A, VIP, Haupttisch" title="Tischnummer oder Tischnamen bearbeiten" />
+            <div class="td-control-group" id="td-rename-wrap">
+              <label class="td-field-label" for="table-detail-rename">Tischnummer / Name</label>
+              <input type="text" id="table-detail-rename" class="td-input" placeholder="z.B. 1A, VIP, Haupttisch" title="Tischnummer oder Tischnamen bearbeiten" />
             </div>
-            <div style="flex: 0 0 auto;" id="td-seatcount-wrap">
-              <label for="table-detail-seatcount">Tischvorlage / Größe</label>
-              <select id="table-detail-seatcount" style="width: 200px;" title="Tischvorlage / Tischgröße anpassen"></select>
+            <div class="td-control-group" id="td-seatcount-wrap">
+              <label class="td-field-label" for="table-detail-seatcount">Tischvorlage / Größe</label>
+              <select id="table-detail-seatcount" class="td-select" title="Tischvorlage / Tischgröße anpassen"></select>
             </div>
-            <div style="display: flex; align-items: flex-end; gap: 16px;">
-              <label id="td-lbl-table-fixed" title="Tisch im Saalplan hervorheben und standardmäßig einklappen" style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; white-space: nowrap; font-weight: 500; text-transform: none; letter-spacing: 0; margin-bottom: 0;">
-                <input type="checkbox" id="table-detail-table-fixed" style="margin:0; cursor:pointer; width:14px; height:14px; accent-color:#22c55e;" title="Tisch im Saalplan als platziert/fixiert markieren"> Gäste platziert
-              </label>
-              <label id="td-lbl-seat-fixed" title="Alle Sitzplatzränder im Saalplan grün hervorheben (Sitzordnung fixiert)" style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; white-space: nowrap; font-weight: 500; text-transform: none; letter-spacing: 0; margin-bottom: 0;">
-                <input type="checkbox" id="table-detail-fixed" style="margin:0; cursor:pointer; width:14px; height:14px; accent-color:#22c55e;" title="Sitzplätze als fixiert markieren"> Plätze fixiert
-              </label>
-              <button class="btn btn-sm edit-mode-toggle" id="btn-rotate-table" title="Tisch um 90° drehen" style="display:none;">↻ Drehen</button>
-              <button class="btn btn-sm edit-mode-toggle" id="btn-edit-mode" title="Bearbeitungsmodus: Plätze durch Anklicken aktivieren oder deaktivieren">🔧 Bearbeitungsmodus</button>
-              <button class="btn btn-accent" id="table-detail-save" title="Tischnamen speichern">Name aktualisieren</button>
-              <button class="btn btn-danger" id="table-detail-remove" title="Diesen Tisch aus dem Saalplan entfernen">🗑️ Tisch entfernen</button>
+            <div class="td-control-group">
+              <span class="td-field-label">Status</span>
+              <div class="td-badges-row">
+                <label class="td-toggle-badge" id="td-lbl-table-fixed" title="Tisch im Saalplan hervorheben und standardmäßig einklappen">
+                  <input type="checkbox" id="table-detail-table-fixed" style="margin:0; cursor:pointer; width:15px; height:15px; accent-color:#22c55e;">
+                  <span>Gäste platziert</span>
+                </label>
+                <label class="td-toggle-badge" id="td-lbl-seat-fixed" title="Alle Sitzplatzränder im Saalplan grün hervorheben (Sitzordnung fixiert)">
+                  <input type="checkbox" id="table-detail-fixed" style="margin:0; cursor:pointer; width:15px; height:15px; accent-color:#22c55e;">
+                  <span>Plätze fixiert</span>
+                </label>
+              </div>
+            </div>
+            <div style="flex: 1;"></div>
+            <div class="td-control-group" style="align-items: flex-end;">
+              <span class="td-field-label" style="visibility: hidden;">Aktion</span>
+              <button class="btn btn-danger td-btn-action" id="table-detail-remove" title="Diesen Tisch aus dem Saalplan entfernen">🗑️ Tisch entfernen</button>
             </div>
           </div>
           <div class="table-detail-layout">
             <div class="table-detail-left-panel">
-              <div class="table-detail-zoom-bar">
-                <button class="btn btn-sm" id="btn-zoom-out" style="padding: 2px 8px;" title="Verkleinern">-</button>
-                <span class="table-detail-zoom-level" id="zoom-level" title="Aktuelle Zoomstufe">100%</span>
-                <button class="btn btn-sm" id="btn-zoom-in" style="padding: 2px 8px;" title="Vergrößern">+</button>
-                <button class="btn btn-sm" id="btn-zoom-fit" style="padding: 2px 8px;" title="Ansicht anpassen">Fit</button>
+              <div class="table-detail-canvas-wrap">
+                <div class="table-detail-canvas-overlay-left">
+                  <button class="btn btn-sm edit-mode-toggle" id="btn-edit-mode" title="Bearbeitungsmodus: Plätze durch Anklicken aktivieren oder deaktivieren">🔧 Bearbeitungsmodus</button>
+                  <button class="btn btn-sm edit-mode-toggle" id="btn-rotate-table" title="Tisch um 90° drehen" style="display:none;">↻ Drehen</button>
+                </div>
+                <div class="table-detail-canvas-overlay-right">
+                  <div class="table-detail-zoom-bar">
+                    <button class="btn btn-sm" id="btn-zoom-out" style="padding: 2px 8px;" title="Verkleinern">-</button>
+                    <span class="table-detail-zoom-level" id="zoom-level" title="Aktuelle Zoomstufe">100%</span>
+                    <button class="btn btn-sm" id="btn-zoom-in" style="padding: 2px 8px;" title="Vergrößern">+</button>
+                    <button class="btn btn-sm" id="btn-zoom-fit" style="padding: 2px 8px;" title="Ansicht anpassen">Fit</button>
+                  </div>
+                </div>
+                <div class="table-detail-svg-container" id="table-detail-svg-container"></div>
               </div>
-              <div class="table-detail-svg-container" id="table-detail-svg-container"></div>
             </div>
             <div class="table-detail-right-panel" id="table-detail-right-panel">
               <h3 class="table-detail-guests-header">Zugewiesene Gäste</h3>
@@ -263,11 +289,24 @@ export function initTableDetailModal() {
   initTableDetailEdit();
 
   $('table-detail-close').addEventListener('click', closeTableDetailModal);
-  $('table-detail-save').addEventListener('click', saveTableNumber);
-  $('table-detail-rename').addEventListener('keydown', e => {
-    if (e.key === 'Enter') saveTableNumber();
-    if (e.key === 'Escape') closeTableDetailModal();
-  });
+
+  const renameInput = $('table-detail-rename');
+  if (renameInput) {
+    renameInput.addEventListener('blur', saveTableNumber);
+    renameInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        saveTableNumber();
+        renameInput.blur();
+      } else if (e.key === 'Escape') {
+        if (uiState.currentEditingTableId) {
+          const tbl = getTable(uiState.currentEditingTableId);
+          if (tbl) renameInput.value = tbl.number;
+        }
+        renameInput.blur();
+      }
+    });
+  }
+
   $('table-detail-modal').addEventListener('click', e => {
     if (e.target === $('table-detail-modal')) closeTableDetailModal();
   });

@@ -121,12 +121,13 @@ Opened by clicking a table on the venue SVG. A wide (1250px) modal with two colu
 | Large SVG rendering of the table (400×340) with diet-colored seats, seat numbers, and guest names | Scrollable guest list with the full column layout (same as Full Table View) |
 
 **Header controls (above both columns):**
-- **Rename table:** Text input + "Name aktualisieren" button. If the name conflicts with another table, the numbers are swapped.
-- **Tischgröße:** Dropdown (7 / 8 / 10). Options smaller than the current seated count are disabled. On change, seat numbers are **compacted** (guests renumbered 1, 2, 3… in order) so no one ends up on a non-existent seat.
-- **Fixiert checkbox:** Controls `table.seatsFixed`. When checked, all seat circles/rects in the venue SVG get green borders. Independent from `table.fixed`.
+- **Rename table:** Text input saves automatically on blur, Enter, or modal close. If the name conflicts with another table, the numbers are swapped.
+- **Tischvorlage / Größe:** Dropdown listing both standard presets (7, 8, 10) and saved custom Vorlagen (blueprints). Options smaller than the current seated count are disabled. On change, seat numbers are **compacted** (guests renumbered onto active seats in order) so no one ends up on a non-existent or disabled seat.
+- **Status badges:** "Gäste platziert" (`table.fixed`) and "Plätze fixiert" (`table.seatsFixed`) styled as aligned toggle badges.
 - **"🗑️ Tisch entfernen"** button: removes the table (with confirmation if guests are assigned), then closes the modal.
 
 **Detail SVG features:**
+- **Overlay actions:** "🔧 Bearbeitungsmodus" toggle (and "↻ Drehen" for rectangular tables) placed directly in the top-left corner of the table canvas; zoom controls (- / + / Fit) placed in the top-right corner.
 - Each seat always shows its number (small, above the guest name).
 - **Click-to-swap:** Click a seat to select it (amber/gold highlight ring + glow). Click the same seat to deselect. Click a different seat while one is selected → swaps the two guests (works for occupied↔occupied, occupied↔empty, empty↔empty), saves, and re-renders. Selection is cleared on modal close.
 
