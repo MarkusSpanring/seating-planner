@@ -19,26 +19,7 @@ export function openTableDetail(tableId) {
   uiState.currentEditingTableId = tableId;
   $('table-detail-rename').value = tbl.number;
 
-  // Populate seat-count selector; disable options smaller than current seated count
-  const seatSel = $('table-detail-seatcount');
-  const isRectTable = tbl.shape === 'rectangle' && tbl.seatsLong != null;
-  seatSel.disabled = isRectTable;
-
-  let hasCurrentValue = false;
-  Array.prototype.forEach.call(seatSel.options, opt => {
-    if (parseInt(opt.value) === tbl.seatCount) hasCurrentValue = true;
-  });
-  if (!hasCurrentValue) {
-    const customOpt = document.createElement('option');
-    customOpt.value = String(tbl.seatCount);
-    customOpt.textContent = tbl.seatCount + 'er Tisch';
-    seatSel.appendChild(customOpt);
-  }
-  seatSel.value = String(tbl.seatCount);
-  const seatedAtTable = guestsAtTable(tableId).filter(g => g.seatNumber).length;
-  Array.prototype.forEach.call(seatSel.options, opt => {
-    opt.disabled = isRectTable || parseInt(opt.value) < seatedAtTable;
-  });
+  populateTableDetailTemplateSelect(tbl);
 
   $('table-detail-table-fixed').checked = !!tbl.fixed;
   $('table-detail-fixed').checked = !!tbl.seatsFixed;
@@ -48,6 +29,93 @@ export function openTableDetail(tableId) {
   renderTableDetailGuests(tbl.id);
 
   $('table-detail-modal').style.display = 'flex';
+}
+
+export function populateTableDetailTemplateSelect(tbl) {
+  const seatSel = $('table-detail-seatcount');
+  if (!seatSel) return;
+  seatSel.innerHTML = '';
+  seatSel.disabled = false;
+
+  const seatedAtTable = guestsAtTable(tbl.id).filter(g => g.seatNumber).length;
+
+  // 1. Standard round presets
+  const standardGroup = document.createElement('optgroup');
+  standardGroup.label = 'Standard-Tische (Rund)';
+  const presets = [
+    { count: 7, label: '7er Tisch' },
+    { count: 8, label: '8er Tisch' },
+    { count: 10, label: '10er Tisch' }
+  ];
+  presets.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = 'preset:' + p.count;
+    opt.textContent = p.label;
+    if (p.count < seatedAtTable) {
+      opt.disabled = true;
+      opt.textContent += ` (${seatedAtTable} Gäste zugewiesen)`;
+    }
+    standardGroup.appendChild(opt);
+  });
+  seatSel.appendChild(standardGroup);
+
+  // 2. Vorlagen (Custom Blueprints)
+  const blueprints = Array.isArray(state.customBlueprints) ? state.customBlueprints : [];
+  if (blueprints.length > 0) {
+    const bpGroup = document.createElement('optgroup');
+    bpGroup.label = 'Vorlagen';
+    blueprints.forEach(bp => {
+      const opt = document.createElement('option');
+      opt.value = 'bp:' + bp.id;
+      const disCount = Array.isArray(bp.disabledSeats) ? bp.disabledSeats.length : 0;
+      const effSeats = bp.seatCount - disCount;
+      const shapeText = bp.shape === 'rectangle' ? `${bp.seatsLong || 0}x${bp.seatsShort || 0}` : 'Rund';
+      opt.textContent = `${bp.name} (${shapeText}, ${bp.seatCount}er)`;
+      if (effSeats < seatedAtTable) {
+        opt.disabled = true;
+        opt.textContent += ` (${seatedAtTable} Gäste zugewiesen)`;
+      }
+      bpGroup.appendChild(opt);
+    });
+    seatSel.appendChild(bpGroup);
+  }
+
+  // Determine currently selected option
+  let selectedValue = null;
+  if (tbl.blueprintId && blueprints.some(b => b.id === tbl.blueprintId)) {
+    selectedValue = 'bp:' + tbl.blueprintId;
+  } else {
+    // Try to match a blueprint by geometric properties
+    const matchingBp = blueprints.find(bp => {
+      const sameShape = (tbl.shape || 'circle') === (bp.shape || 'circle');
+      const sameSeats = tbl.seatCount === bp.seatCount;
+      const sameLong = (tbl.seatsLong != null ? tbl.seatsLong : null) === (bp.seatsLong != null ? bp.seatsLong : null);
+      const sameShort = (tbl.seatsShort != null ? tbl.seatsShort : null) === (bp.seatsShort != null ? bp.seatsShort : null);
+      const sameCustomR = (tbl.tableCustomR != null ? tbl.tableCustomR : null) === (bp.tableCustomR != null ? bp.tableCustomR : null);
+      const sameCustomW = (tbl.tableCustomW != null ? tbl.tableCustomW : null) === (bp.tableCustomW != null ? bp.tableCustomW : null);
+      const sameCustomH = (tbl.tableCustomH != null ? tbl.tableCustomH : null) === (bp.tableCustomH != null ? bp.tableCustomH : null);
+      return sameShape && sameSeats && sameLong && sameShort && sameCustomR && sameCustomW && sameCustomH;
+    });
+    if (matchingBp) {
+      selectedValue = 'bp:' + matchingBp.id;
+    } else if (tbl.shape === 'circle' && !tbl.tableCustomR && (!tbl.seatsLong) && (!tbl.disabledSeats || tbl.disabledSeats.length === 0)) {
+      if (tbl.seatCount === 7) selectedValue = 'preset:7';
+      else if (tbl.seatCount === 8) selectedValue = 'preset:8';
+      else if (tbl.seatCount === 10) selectedValue = 'preset:10';
+    }
+  }
+
+  if (selectedValue && seatSel.querySelector(`option[value="${selectedValue}"]`)) {
+    seatSel.value = selectedValue;
+  } else {
+    // Current table configuration does not match any existing preset or blueprint
+    const customOpt = document.createElement('option');
+    customOpt.value = 'current';
+    const shapeText = tbl.shape === 'rectangle' ? 'Rechteck' : 'Rund';
+    customOpt.textContent = `Aktuell (${shapeText}, ${tbl.seatCount}er)`;
+    seatSel.insertBefore(customOpt, seatSel.firstChild);
+    seatSel.value = 'current';
+  }
 }
 
 export function updateTableDetailModalVisuals(tbl) {
@@ -96,13 +164,6 @@ export function closeTableDetailModal() {
   ['td-rename-wrap', 'td-seatcount-wrap', 'td-lbl-table-fixed', 'td-lbl-seat-fixed', 'table-detail-right-panel', 'table-detail-save', 'table-detail-remove'].forEach(id => {
     const el = $(id);
     if (el) el.classList.remove('edit-mode-disabled');
-  });
-
-  // Remove custom blueprint seatcount options
-  const seatSel = $('table-detail-seatcount');
-  const standardVals = ['7', '8', '10'];
-  Array.prototype.slice.call(seatSel.options).forEach(opt => {
-    if (standardVals.indexOf(opt.value) < 0) seatSel.removeChild(opt);
   });
 }
 
@@ -158,12 +219,8 @@ function mountTableDetailModal() {
               <input type="text" id="table-detail-rename" placeholder="z.B. 1A, VIP, Haupttisch" title="Tischnummer oder Tischnamen bearbeiten" />
             </div>
             <div style="flex: 0 0 auto;" id="td-seatcount-wrap">
-              <label for="table-detail-seatcount">Tischgröße</label>
-              <select id="table-detail-seatcount" style="width: 120px;" title="Tischgröße anpassen (Anzahl der Plätze)">
-                <option value="7">7er Tisch</option>
-                <option value="8">8er Tisch</option>
-                <option value="10">10er Tisch</option>
-              </select>
+              <label for="table-detail-seatcount">Tischvorlage / Größe</label>
+              <select id="table-detail-seatcount" style="width: 200px;" title="Tischvorlage / Tischgröße anpassen"></select>
             </div>
             <div style="display: flex; align-items: flex-end; gap: 16px;">
               <label id="td-lbl-table-fixed" title="Tisch im Saalplan hervorheben und standardmäßig einklappen" style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; white-space: nowrap; font-weight: 500; text-transform: none; letter-spacing: 0; margin-bottom: 0;">
@@ -232,14 +289,38 @@ export function initTableDetailModal() {
     if (!tblId) return;
     const tbl = state.tables.find(t => t.id === tblId);
     if (!tbl) return;
-    tbl.seatCount = parseInt(this.value);
 
-    // Remove disabled seats that exceed new seatCount
-    if (Array.isArray(tbl.disabledSeats)) {
-      tbl.disabledSeats = tbl.disabledSeats.filter(s => s <= tbl.seatCount);
+    const val = this.value;
+    if (val === 'current') return;
+
+    if (val.startsWith('preset:')) {
+      const count = parseInt(val.split(':')[1], 10);
+      tbl.shape = 'circle';
+      tbl.seatCount = count;
+      tbl.seatsLong = null;
+      tbl.seatsShort = null;
+      tbl.tableCustomR = null;
+      tbl.tableCustomW = null;
+      tbl.tableCustomH = null;
+      tbl.blueprintId = null;
+      tbl.disabledSeats = [];
+    } else if (val.startsWith('bp:')) {
+      const bpId = val.slice(3);
+      const bp = state.customBlueprints.find(b => b.id === bpId);
+      if (bp) {
+        tbl.shape = bp.shape;
+        tbl.seatCount = bp.seatCount;
+        tbl.seatsLong = bp.seatsLong != null ? bp.seatsLong : null;
+        tbl.seatsShort = bp.seatsShort != null ? bp.seatsShort : null;
+        tbl.tableCustomR = bp.tableCustomR != null ? bp.tableCustomR : null;
+        tbl.tableCustomW = bp.tableCustomW != null ? bp.tableCustomW : null;
+        tbl.tableCustomH = bp.tableCustomH != null ? bp.tableCustomH : null;
+        tbl.blueprintId = bp.id;
+        tbl.disabledSeats = (bp.disabledSeats || []).slice();
+      }
     }
 
-    // Compact seat numbers so nobody ends up on a non-existent seat
+    // Compact seat numbers so nobody ends up on a non-existent / disabled seat
     const activeSeats = getActiveSeatNumbers(tbl);
     const seated = state.guests
       .filter(g => g.tableId === tbl.id && g.seatNumber)
@@ -247,6 +328,10 @@ export function initTableDetailModal() {
     seated.forEach((g, i) => { g.seatNumber = activeSeats[i] || null; });
 
     saveAndRender();
+    populateTableDetailTemplateSelect(tbl);
+    renderTableDetailSVG(tbl.id);
+    zoomFit(tbl.id);
+    renderTableDetailGuests(tbl.id);
   });
 
   $('table-detail-fixed').addEventListener('change', function () {
