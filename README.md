@@ -130,40 +130,45 @@ Because Sitzplan runs locally on your computer, it is designed for a single user
 
 ## 🎨 Overview & How to Use Sitzplan
 
-The application offers two views:
-- **Split Venue View (Default):** A visual graphical floor plan on the left and a table-grouped guest list on the right.
-- **Full Table View:** Click **"Venue ausblenden"** to hide the canvas and expand into a full spreadsheet view for rapid data entry, bulk editing, and CSV import.
+The application offers two versatile views:
+- **Split Venue View (Default):** A visual graphical floor plan on the left and an accordion table-grouped guest list on the right.
+- **Full Table View:** Click **"Venue ausblenden"** to hide the canvas and expand into an Excel-like interactive spreadsheet grid with 2D arrow-key navigation, quick-add row, and inline editing.
 
 ---
 
 ### 1. Managing Tables & Floor Plan
-- **Add Tables:** Use the quick-add buttons in the toolbar (`+ 7er Tisch`, `+ 8er Tisch`, `+ 10er Tisch`) or use the **Blueprint Builder (Tischvorlagen)** to design custom rectangular or circular tables of any dimension.
-- **Move Tables:** Click and drag the center circle/rectangle of any table to reposition it on the venue canvas.
-- **Table Detail Modal:** Click on any table to open its detail view:
-  - **Rename Table:** Change the table name or number.
-  - **Resize Table:** Change the seat count (guests are safely renumbered so nobody is left out).
-  - **Status Checkboxes:**
-    - **Fixiert (Gäste platziert):** Locks the guest group assigned to the table. Gives the table a green center circle.
-    - **Plätze fixiert:** Locks the specific seat numbers, giving all seat circles a green border.
-  - **Bearbeitungsmodus (Edit Mode):** Click individual seats to disable/ghost them (useful for table legs, structural pillars, or asymmetric seating).
+- **Add Tables via Blueprints (Tischvorlagen):** Design custom circular or rectangular tables with exact dimensions (in cm) and interactive seat disabling in the **Blueprint Builder**. Placed tables can be spawned near the canvas center with one click via `+ <Vorlage>`. If a venue has no templates yet, a helpful prompt appears in the canvas center to create your first template.
+- **Move Tables:** Click and drag the center of any table to reposition it freely on the venue canvas (with collision detection and automatic canvas boundary expansion).
+- **Table Detail Modal:** Click on any table to open its detailed management view:
+  - **Inline Renaming:** Edit the table label directly; changes save automatically on blur, Enter, or modal close.
+  - **Change Blueprint / Size:** Switch between saved blueprints (guests are safely compacted onto active seats).
+  - **Status Badges:**
+    - **Gäste platziert (`table.fixed`):** Locks the guest group assigned to the table; turns the table center green on the floor plan.
+    - **Plätze fixiert (`table.seatsFixed`):** Locks specific seat assignments; all seat circles receive a green border.
+  - **Bearbeitungsmodus (Edit Mode):** Toggle seat editing right inside the table canvas overlay to disable or re-enable individual chairs (e.g. for table legs, structural pillars, or asymmetric seating).
   - **Rotate Table:** Rotate rectangular tables by 90° with a single click while preserving guest assignments.
-  - **Delete Table:** Remove a table (with confirmation if guests are currently seated).
+  - **Delete Table:** Remove a table (with confirmation if guests are seated).
 
 ### 2. Placing Guests & Swapping Seats
-- **Via Dropdown:** In the guest list panel, choose the desired Table and Seat from the dropdown menus.
-- **Interactive Click-to-Swap:** In the Table Detail Modal, click any seat circle to select it (highlighted with an amber ring), then click any other seat to instantly swap the two guests!
+- **Interactive Click-to-Swap:** In the Table Detail Modal SVG, click any seat circle to select it (highlighted with an amber ring), then click any other seat to instantly swap the two guests (works for occupied↔occupied, occupied↔empty, empty↔empty).
+- **Dropdown Assignment:** In either view, choose table and seat numbers from the dropdown menus. Occupied seats are marked with `⇄` for instant seat swaps.
 
-### 3. Managing Guests
-- **Add Guests:** Click **"➕ Gast hinzufügen"** in the Full Table View.
-- **Bulk CSV Import:** Click **"📄 CSV importieren"** to load guests from a `.csv` file. Format: `[First Name], [Last Name], [Optional: High Chair (yes/true)]`.
-- **Diet & Allergies:** Color-coded circles make dietary requirements immediately visible at a glance. Customize diets and colors via the **"🎨 Diäten"** modal.
-- **Age Categories:** Adult, under 12, under 6, under 3. Used for seating badges and accurate catering headcounts. Customize via **"👶 Altersgruppen"**.
+### 3. Spreadsheet Grid & Rapid Guest Entry
+- **Excel-like 2D Grid:** 8 streamlined columns: `Vorname | Nachname | Adresse | Tisch | Platz | HS | Alter | Diät`.
+  - **Keyboard Navigation:** Navigate with `ArrowUp`, `ArrowDown`, `ArrowLeft`, `ArrowRight`, `Tab`, and `Enter`.
+  - **Quick-Add Empty Row:** A persistent empty row (`*`) at the bottom. Start typing a name and a new guest record is instantiated while spawning a fresh blank row below for continuous high-speed data entry. If cleared back to blank, the extra row vanishes automatically.
+- **Unified Settings Modal ("⚙️ Einstellungen"):**
+  - **Diäten & Allergien:** Color-coded dietary options with custom color picker and real-time canvas updates.
+  - **Altersgruppen:** Configurable age brackets for headcounts and catering.
+  - **Daten & CSV:** 1-click Excel-compatible CSV export (with UTF-8 BOM) and quick CSV file import.
 - **High Chairs (Hochstuhl):** High-chair seats are rendered as distinct rounded squares instead of circles on the floor plan.
 
 ### 4. Family Groups & Linking
-- **Group Families:** Link family members together so they stay organized.
-- **Bulk Table Assignment:** When all members of a family are at the same table, you can move the entire family to another table with a single dropdown selection!
-- **Split Warning:** If family members become separated across different tables, a subtle warning badge informs you.
+- **Family Distinguishability:** Families are organized into dedicated container blocks with a pill label (`👨‍👩‍👧‍👦 Familie <Name> (<Count>)`), soft tinted background, and purple left accent stripe.
+- **Add Members:** Click the subtle `➕ Mitglied` button in the family header to search and attach guests on-demand.
+- **Form Families:** Single guests feature a quick `👨‍👩‍👧‍👦` action button to link with another guest and start a family.
+- **Bulk Table Assignment:** When a family is together in split view, the pill acts as a dropdown to move the entire family to another table with a single click.
+- **Split Detection:** If members are separated across different tables, a warning badge highlights the split.
 
 ### 5. Multi-Page Print & PDF Export
 Click **"🖨️ Venue drucken"** in the header to generate a printout or export to PDF:
