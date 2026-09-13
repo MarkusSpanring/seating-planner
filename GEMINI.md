@@ -30,6 +30,10 @@ Welcome to **Sitzplan**! This document serves as the primary technical entrypoin
   - Linux: `./install.sh`
   - macOS: `./install.command`
   - Windows: `install.bat`
+- **1-Click Update Scripts:**
+  - Linux: `./update.sh`
+  - macOS: `./update.command`
+  - Windows: `update.bat`
 - **Validating Code:**
   - Syntax check JS: `node -c <file.js>`
   - Syntax check Python: `python3 -m py_compile server.py`
@@ -162,6 +166,7 @@ Custom reusable table templates configured in the Blueprint Builder:
   - **Diäten & Allergien:** Configured diets with swatches and deletion; form to create new diets with name input, color picker, and real-time canvas updates.
   - **Altersgruppen:** Manage age categories for catering headcounts.
   - **Daten & CSV:** 1-click Excel-compatible CSV export (with UTF-8 BOM) and CSV file import.
+  - **Updates & System:** In-browser 1-click update check (`GET /api/update/check`) and update apply (`POST /api/update/apply`), automatic data backup, commit status, and desktop script references.
 
 ### 6. Multi-Page Print & PDF Export
 - Triggered by **"🖨️ Venue drucken"** (`window.print()`).
@@ -180,10 +185,12 @@ sitzplan/
 ├── server.py                            # Python 3 static file server & JSON REST API
 ├── start.sh / .command / .bat           # Launch scripts (Linux, macOS, Windows)
 ├── install.sh / .command / .bat         # Setup scripts (Linux, macOS, Windows)
+├── update.sh / .command / .bat           # 1-click update scripts (Linux, macOS, Windows)
+├── .gitignore                           # Excludes states/, backups, caches from version control
 ├── README.md                            # End-user guide & quick-start manual
 ├── GEMINI.md                            # Contributor guide & architecture documentation
 ├── style.css                            # Master CSS file imports
-├── states/                              # Persisted venue state JSON files
+├── states/                              # Persisted venue state JSON files (NEVER committed)
 │   ├── _active.json                     # Name of currently active venue
 │   └── <VenueName>.json                 # Venue state JSON files (e.g. Hauptsaal.json)
 │

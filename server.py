@@ -3,12 +3,153 @@ import socketserver
 import json
 import os
 import urllib.parse
+import subprocess
+import shutil
+import datetime
 
 PORT = 8000
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATES_DIR = os.path.join(BASE_DIR, 'states')
 LEGACY_STATE_FILE = os.path.join(BASE_DIR, 'sitzplan_state.json')
 ACTIVE_VENUE_FILE = os.path.join(STATES_DIR, '_active.json')
+
+REMOTE_REPO_URL = "https://github.com/MarkusSpanring/seating-planner.git"
+DEFAULT_BRANCH = "master"
+
+def is_git_available():
+    try:
+        subprocess.run(["git", "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        return True
+    except Exception:
+        return False
+
+def is_git_repo():
+    return os.path.isdir(os.path.join(BASE_DIR, ".git"))
+
+def init_git_repo_if_needed():
+    """Initializes git and hooks up origin if this was an unzipped folder."""
+    if not is_git_available():
+        return False, "Git ist auf diesem System nicht installiert."
+    
+    git_dir = os.path.join(BASE_DIR, ".git")
+    if not os.path.isdir(git_dir):
+        try:
+            subprocess.run(["git", "init"], cwd=BASE_DIR, check=True, capture_output=True)
+            subprocess.run(["git", "remote", "add", "origin", REMOTE_REPO_URL], cwd=BASE_DIR, check=True, capture_output=True)
+            subprocess.run(["git", "fetch", "origin", DEFAULT_BRANCH], cwd=BASE_DIR, check=True, capture_output=True, timeout=20)
+            subprocess.run(["git", "reset", "--mixed", f"origin/{DEFAULT_BRANCH}"], cwd=BASE_DIR, check=True, capture_output=True)
+            subprocess.run(["git", "branch", "-M", DEFAULT_BRANCH], cwd=BASE_DIR, check=True, capture_output=True)
+            subprocess.run(["git", "branch", f"--set-upstream-to=origin/{DEFAULT_BRANCH}", DEFAULT_BRANCH], cwd=BASE_DIR, check=True, capture_output=True)
+            return True, "Git-Repository erfolgreich initialisiert."
+        except Exception as e:
+            return False, f"Fehler bei der Git-Initialisierung: {str(e)}"
+    return True, "Git-Repository bereits vorhanden."
+
+def backup_states_dir():
+    """Safely backs up states/ before applying updates."""
+    if os.path.exists(STATES_DIR):
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_name = f"states_backup_{timestamp}"
+        backup_path = os.path.join(BASE_DIR, backup_name)
+        try:
+            shutil.copytree(STATES_DIR, backup_path)
+            return backup_name
+        except Exception as e:
+            print(f"Warning: States backup failed: {e}")
+    return None
+
+def check_for_updates():
+    if not is_git_available():
+        return {
+            "gitAvailable": False,
+            "canUpdate": False,
+            "error": "Git ist nicht installiert. Bitte führe einmalig die Installationsdatei aus (install.bat / install.command / install.sh)."
+        }
+    
+    if not is_git_repo():
+        ok, msg = init_git_repo_if_needed()
+        if not ok:
+            return {
+                "gitAvailable": True,
+                "canUpdate": False,
+                "error": msg
+            }
+
+    try:
+        current_res = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=BASE_DIR, capture_output=True, text=True, timeout=5)
+        current_commit = current_res.stdout.strip() if current_res.returncode == 0 else "unbekannt"
+
+        date_res = subprocess.run(["git", "log", "-1", "--format=%cd", "--date=short"], cwd=BASE_DIR, capture_output=True, text=True, timeout=5)
+        current_date = date_res.stdout.strip() if date_res.returncode == 0 else ""
+
+        fetch_res = subprocess.run(["git", "fetch", "origin", DEFAULT_BRANCH], cwd=BASE_DIR, capture_output=True, text=True, timeout=15)
+        if fetch_res.returncode != 0:
+            return {
+                "gitAvailable": True,
+                "canUpdate": False,
+                "currentCommit": current_commit,
+                "currentDate": current_date,
+                "error": f"Verbindung zu GitHub fehlgeschlagen: {fetch_res.stderr.strip() or 'Timeout'}"
+            }
+
+        rev_list = subprocess.run(["git", "rev-list", f"HEAD..origin/{DEFAULT_BRANCH}", "--count"], cwd=BASE_DIR, capture_output=True, text=True, timeout=5)
+        behind_count = int(rev_list.stdout.strip()) if rev_list.returncode == 0 and rev_list.stdout.strip().isdigit() else 0
+
+        latest_res = subprocess.run(["git", "rev-parse", "--short", f"origin/{DEFAULT_BRANCH}"], cwd=BASE_DIR, capture_output=True, text=True, timeout=5)
+        latest_commit = latest_res.stdout.strip() if latest_res.returncode == 0 else current_commit
+
+        msg_res = subprocess.run(["git", "log", "-1", "--format=%s", f"origin/{DEFAULT_BRANCH}"], cwd=BASE_DIR, capture_output=True, text=True, timeout=5)
+        latest_msg = msg_res.stdout.strip() if msg_res.returncode == 0 else ""
+
+        return {
+            "gitAvailable": True,
+            "canUpdate": True,
+            "updateAvailable": behind_count > 0,
+            "commitsBehind": behind_count,
+            "currentCommit": current_commit,
+            "currentDate": current_date,
+            "latestCommit": latest_commit,
+            "latestMessage": latest_msg
+        }
+    except Exception as e:
+        return {
+            "gitAvailable": True,
+            "canUpdate": False,
+            "error": f"Fehler bei der Update-Prüfung: {str(e)}"
+        }
+
+def apply_update():
+    if not is_git_available():
+        return False, "Git ist nicht installiert."
+    
+    if not is_git_repo():
+        ok, msg = init_git_repo_if_needed()
+        if not ok:
+            return False, msg
+
+    backup_folder = backup_states_dir()
+
+    try:
+        pull_res = subprocess.run(["git", "pull", "--ff-only", "origin", DEFAULT_BRANCH], cwd=BASE_DIR, capture_output=True, text=True, timeout=25)
+        if pull_res.returncode != 0:
+            reset_res = subprocess.run(["git", "reset", "--hard", f"origin/{DEFAULT_BRANCH}"], cwd=BASE_DIR, capture_output=True, text=True, timeout=10)
+            if reset_res.returncode != 0:
+                return False, f"Git Pull fehlgeschlagen: {pull_res.stderr.strip()} / {reset_res.stderr.strip()}"
+
+        for script in ["start.sh", "install.sh", "update.sh", "start.command", "install.command", "update.command"]:
+            sp = os.path.join(BASE_DIR, script)
+            if os.path.exists(sp):
+                try:
+                    os.chmod(sp, 0o755)
+                except Exception:
+                    pass
+
+        msg = "Sitzplan wurde erfolgreich auf die neueste Version aktualisiert!"
+        if backup_folder:
+            msg += f" (Sicherheitskopie deiner Daten in '{backup_folder}' erstellt)."
+        return True, msg
+    except Exception as e:
+        return False, f"Fehler während des Updates: {str(e)}"
 
 DEFAULT_VENUE_NAME = 'Hauptsaal'
 
@@ -129,6 +270,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             venues = list_venues()
             active = get_active_venue()
             self.send_json(200, {'venues': venues, 'activeVenue': active})
+            return
+
+        if path == '/api/update/check':
+            res = check_for_updates()
+            self.send_json(200, res)
             return
 
         if path == '/api/state':
@@ -290,6 +436,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 self.send_json(200, {'status': 'ok', 'activeVenue': name})
             else:
                 self.send_json(404, {'error': f'Venue "{name}" nicht gefunden'})
+            return
+
+        if path == '/api/update/apply':
+            ok, msg = apply_update()
+            if ok:
+                self.send_json(200, {'success': True, 'message': msg})
+            else:
+                self.send_json(500, {'success': False, 'error': msg})
             return
 
         self.send_json(404, {'error': 'Not found'})

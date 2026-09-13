@@ -65,15 +65,68 @@ goto :END
 
 :FOUND_PYTHON
 for /f "tokens=*" %%v in ('%PYTHON_CMD% --version 2^>^&1') do set PY_VER=%%v
-echo [OK] Python is installed: %PY_VER%
+echo [OK] Python ist installiert: %PY_VER%
 echo.
-echo Creating data directories if needed...
+
+:: 2. Check for Git
+git --version >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+    for /f "tokens=*" %%g in ('git --version 2^>^&1') do set GIT_VER=%%g
+    echo [OK] Git ist installiert: %GIT_VER%
+    goto :SETUP_GIT_REPO
+)
+
+echo [!] Git wurde auf deinem Computer nicht gefunden.
+echo Git wird benoetigt, um spaetere Updates mit einem Klick zu laden.
+echo.
+where winget >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+    echo Windows Package Manager (winget) ist verfuegbar!
+    echo Moechtest du Git jetzt automatisch installieren?
+    set /p INSTALL_GIT="Druecke Y fuer automatische Installation, oder N zum Ueberspringen (Y/N): "
+    if /i "%INSTALL_GIT%"=="Y" (
+        echo.
+        echo Installiere Git via winget... Bitte bestaetige eventuelle Administrator-Meldungen.
+        winget install -e --id Git.Git --scope currentuser
+        echo.
+        echo [INFO] Nach der Git-Installation starte bitte install.bat einmal neu.
+        goto :END
+    )
+) else (
+    echo Du kannst Git jederzeit kostenlos herunterladen:
+    echo https://git-scm.com/download/win
+)
+
+:SETUP_GIT_REPO
+echo.
+set REMOTE_URL=https://github.com/MarkusSpanring/seating-planner.git
+set BRANCH=master
+git --version >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+    if not exist ".git" (
+        echo [INFO] ZIP-Installation erkannt. Verknuepfe mit GitHub-Updatekanal...
+        git init -q
+        git remote add origin %REMOTE_URL% >nul 2>&1
+        git fetch origin %BRANCH% --depth=20 >nul 2>&1
+        git reset --mixed origin/%BRANCH% -q >nul 2>&1
+        git branch -M %BRANCH% >nul 2>&1
+        git branch --set-upstream-to=origin/%BRANCH% %BRANCH% >nul 2>&1
+        echo [OK] Automatische Updates sind jetzt aktiviert!
+    )
+)
+
+echo.
+echo Erstelle Datenverzeichnisse falls noetig...
 if not exist "states" mkdir states
 echo.
 echo ===================================================
-echo Setup is complete! Everything is ready.
-echo You can now start the application by double-clicking:
+echo Einrichtung abgeschlossen! Alles ist startklar.
+echo.
+echo Anwendung starten:
 echo    start.bat
+echo.
+echo Spaeter jederzeit auf die neueste Version aktualisieren:
+echo    update.bat
 echo ===================================================
 echo.
 

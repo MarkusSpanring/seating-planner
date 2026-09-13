@@ -12,16 +12,25 @@ You do **not** need any programming, git, or terminal experience to use Sitzplan
 
 ---
 
-### Step 1: Download & Extract the App
+### Step 1: Download the App
 
-1. On the [GitHub page](https://github.com/MarkusSpanring/seating-planner), click the green **`<> Code`** button near the top right.
-2. In the dropdown, click **`Download ZIP`**.
-3. Locate the downloaded file (usually in your `Downloads` folder, named `seating-planner-main.zip` or `sitzplan-main.zip`).
-4. **Extract (unzip) the file:**
-   - **Windows:** Right-click the `.zip` file ➔ click **Extract All...** ➔ click **Extract**.
-   - **Mac:** Double-click the `.zip` file. macOS will automatically extract it into a normal folder.
-   - **Linux:** Right-click the `.zip` file ➔ click **Extract Here**.
-5. Open the newly extracted folder. You will see files like `install.bat`, `start.bat`, `install.command`, `start.command`, etc.
+You have two simple ways to get Sitzplan:
+
+- **Option A (Simplest for beginners — ZIP Download):**
+  1. On the [GitHub page](https://github.com/MarkusSpanring/seating-planner), click the green **`<> Code`** button near the top right.
+  2. In the dropdown, click **`Download ZIP`**.
+  3. Locate the downloaded file in your `Downloads` folder (`seating-planner-main.zip`).
+  4. **Extract (unzip) the file:**
+     - **Windows:** Right-click the `.zip` file ➔ click **Extract All...** ➔ click **Extract**.
+     - **Mac:** Double-click the `.zip` file (macOS extracts it automatically).
+     - **Linux:** Right-click the `.zip` file ➔ click **Extract Here**.
+  5. Open the extracted folder. You will see files like `install.bat`, `start.bat`, `update.bat`, etc.
+
+- **Option B (For users familiar with Git):**
+  ```bash
+  git clone https://github.com/MarkusSpanring/seating-planner.git
+  cd seating-planner
+  ```
 
 ---
 
@@ -35,24 +44,24 @@ Choose your operating system:
 #### 1. One-Time Setup
 - Double-click **`install.bat`**.
 - A black window will appear:
-  - If Python is already installed on your PC, it will say `[OK] Python is installed!` and you're done!
-  - If Python is not yet installed, the script will offer to install it for you, or open the official Python download page in your web browser.
-- **Very Important Note for Python Installation:**
+  - The script checks for **Python 3** and **Git** (Git is used for 1-click updates).
+  - If Python or Git is missing, the script offers to install them automatically, or opens the official download page.
+- **Important Note for Python Installation:**
   > When installing Python, make sure to check the box at the bottom of the installer:  
-  > **☑️ Add python.exe to PATH**  
-  > (This allows Windows to find and run Python).
-- Once installed, press any key to close the window.
+  > **☑️ Add python.exe to PATH**
+- If you downloaded via ZIP, the script automatically links your folder to the update channel so you can receive future updates with 1 click!
+- Once complete, press any key to close the window.
 
-> **Note on Windows SmartScreen:** If Windows displays a blue pop-up saying *"Windows protected your PC"*, click **"More info"** and then **"Run anyway"**. This is a standard Windows warning for downloaded helper scripts.
+> **Note on Windows SmartScreen:** If Windows displays a blue pop-up saying *"Windows protected your PC"*, click **"More info"** and then **"Run anyway"**. This is a standard Windows prompt for downloaded scripts.
 
 #### 2. Starting the App
 - Double-click **`start.bat`**.
-- The server will start, and your default web browser (Chrome, Edge, Firefox, etc.) will **automatically open** to:
+- The server will start, and your default web browser (Chrome, Edge, Firefox, etc.) will **automatically open** to:  
   👉 **http://localhost:8000**
 - *Keep the black command window open while you use Sitzplan.*
 
 #### 3. Stopping the App
-- When you are finished, simply close your browser tab and close the black command window. All your changes are already saved automatically!
+- When finished, simply close your browser tab and close the black command window. All your changes are saved automatically!
 
 </details>
 
@@ -61,26 +70,27 @@ Choose your operating system:
 
 #### 1. One-Time Setup
 - Double-click **`install.command`**.
-- A Terminal window will open and verify that Python 3 is installed.
-  - Python 3 is pre-installed on most modern Macs. If it is missing, the script will open the official Python download page for macOS.
-- The script automatically configures the necessary launch permissions.
+- A Terminal window will open and verify that Python 3 and Git are installed.
+  - Python 3 is pre-installed on most modern Macs. If missing, the official installer page will open.
+  - If Git is missing, macOS will prompt you to install Apple Developer Tools with one click.
+- The script automatically configures launch permissions and sets up the update channel.
 - Press **Enter** when prompted to close the window.
 
 > **Note on macOS Security (Gatekeeper):**  
 > If macOS displays a message saying the script *"cannot be opened because it is from an unidentified developer"*:
-> 1. Right-click (or hold <kbd>Control</kbd> and click) on **`install.command`** (or `start.command`).
+> 1. Right-click (or hold <kbd>Control</kbd> and click) on **`install.command`**, `start.command`, or `update.command`.
 > 2. Click **Open** from the menu.
 > 3. In the confirmation dialog, click **Open**.  
 > *(You only need to do this the very first time!)*
 
 #### 2. Starting the App
 - Double-click **`start.command`**.
-- A Terminal window will open, and your web browser (Safari, Chrome, etc.) will **automatically open** to:
+- A Terminal window will open, and your web browser will **automatically open** to:  
   👉 **http://localhost:8000**
-- *Keep the Terminal window open while you are working.*
+- *Keep the Terminal window open while working.*
 
 #### 3. Stopping the App
-- When you are done, close your browser and close the Terminal window (or press <kbd>Ctrl</kbd> + <kbd>C</kbd> in the Terminal).
+- When done, close your browser and close the Terminal window (or press <kbd>Ctrl</kbd> + <kbd>C</kbd> in Terminal).
 
 </details>
 
@@ -92,20 +102,43 @@ Choose your operating system:
   ```bash
   ./install.sh
   ```
-  *(If Python 3 is not installed, the script will show you the exact `apt`, `dnf`, or `pacman` command to install it).*
+  *(Verifies Python 3 and Git; shows exact package manager commands if anything is missing).*
 
 #### 2. Starting the App
 - Run:
   ```bash
   ./start.sh
   ```
-- Your default web browser will **automatically open** to:
+- Your web browser will **automatically open** to:  
   👉 **http://localhost:8000**
 
 #### 3. Stopping the App
 - Press <kbd>Ctrl</kbd> + <kbd>C</kbd> in your terminal.
 
 </details>
+
+---
+
+## 🔄 How to Update Sitzplan
+
+Whenever new features or bug fixes are released, you can update Sitzplan in seconds **without losing any of your data**!
+
+### Method 1: In the Browser (Easiest!)
+1. Open Sitzplan and click **⚙️ Einstellungen** in the top navigation bar.
+2. Click the **🔄 Updates & Info** tab on the left.
+3. Click **"🔍 Auf Updates prüfen"**.
+4. If an update is available, click **"📥 Jetzt aktualisieren"**.
+5. The application will automatically create a backup of your data, download the latest version, and refresh your browser!
+
+### Method 2: Desktop 1-Click Update Script
+If the app is closed, you can update directly from your computer:
+- **Windows:** Double-click **`update.bat`**.
+- **Mac:** Double-click **`update.command`**.
+- **Linux:** Run **`./update.sh`**.
+
+> **🛡️ Data Safety Guarantee:**  
+> Your seating plans, venues, tables, and guests are saved in the `states/` folder.  
+> The update mechanism **never touches or overwrites your data**. In addition, every update automatically creates a timestamped safety backup (e.g. `states_backup_.../`).
 
 ---
 
@@ -183,6 +216,6 @@ Click **"🖨️ Venue drucken"** in the header to generate a printout or export
 - **Backend:** `server.py` — a lightweight Python 3 `http.server` (~320 LOC) handling static file serving and JSON REST endpoints (`/api/state`, `/api/venues`).
 - **Data Directory:** `states/` contains JSON files per venue (`Hauptsaal.json`, `Agape.json`, etc.) and `_active.json` for active venue tracking.
 - **Scripts:**
-  - `start.bat` / `install.bat` — Windows launcher and setup.
-  - `start.command` / `install.command` — macOS launcher and setup.
-  - `start.sh` / `install.sh` — Linux launcher and setup.
+  - `start.bat` / `install.bat` / `update.bat` — Windows launcher, setup, and 1-click updater.
+  - `start.command` / `install.command` / `update.command` — macOS launcher, setup, and 1-click updater.
+  - `start.sh` / `install.sh` / `update.sh` — Linux launcher, setup, and 1-click updater.
