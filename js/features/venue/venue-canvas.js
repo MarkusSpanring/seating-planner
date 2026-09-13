@@ -14,6 +14,7 @@ import {
 } from '../../utils/geometry.js';
 import { getTable, getDiet, guestAtSeat } from '../../utils/seating.js';
 import { openTableDetail } from '../table-detail/table-detail-modal.js';
+import { openBlueprintBuilder } from '../blueprint-builder/blueprint-modal.js';
 import { showTooltip, hideTooltip, showTableTooltip, renderLegends } from './venue-tooltips.js';
 
 export function svgPoint(clientX, clientY) {
@@ -67,8 +68,8 @@ export function renderVenue() {
   }
   svg.appendChild(dotsGroup);
 
-  // Empty state message
-  if (state.tables.length === 0) {
+  // Empty state message when blueprints exist but no tables placed yet
+  if (state.tables.length === 0 && (state.customBlueprints && state.customBlueprints.length > 0)) {
     const txt1 = document.createElementNS(SVG_NS, 'text');
     txt1.setAttribute('x', String(venueW / 2));
     txt1.setAttribute('y', String(venueH / 2 - 15));
@@ -77,7 +78,7 @@ export function renderVenue() {
     txt1.setAttribute('font-family', "'Inter',sans-serif");
     txt1.setAttribute('font-weight', '500');
     txt1.setAttribute('text-anchor', 'middle');
-    txt1.textContent = 'Tische mit den Schaltflächen oben hinzufügen';
+    txt1.textContent = 'Tische mit den Vorlagen oben hinzufügen';
     svg.appendChild(txt1);
 
     const txt2 = document.createElementNS(SVG_NS, 'text');
@@ -333,5 +334,30 @@ export function renderVenue() {
   renderLegends(globalDietIds);
 
   container.appendChild(svg);
+
+  // If no blueprints exist, show prominent button in the center of the venue to create one
+  if (!state.customBlueprints || state.customBlueprints.length === 0) {
+    const prompt = document.createElement('div');
+    prompt.className = 'venue-empty-blueprint-prompt';
+    prompt.id = 'venue-empty-blueprint-prompt';
+    prompt.innerHTML = `
+      <div class="venue-empty-blueprint-card">
+        <div class="venue-empty-blueprint-icon">📐</div>
+        <div class="venue-empty-blueprint-title">Keine Tischvorlagen vorhanden</div>
+        <div class="venue-empty-blueprint-desc">Erstelle eine Tischvorlage, um Tische im Saalplan zu platzieren.</div>
+        <button class="btn btn-accent venue-empty-blueprint-btn" id="btn-empty-create-template" title="Tischvorlagen-Editor öffnen">
+          <span>➕</span>
+          <span>Tischvorlage erstellen</span>
+        </button>
+      </div>
+    `;
+    container.appendChild(prompt);
+    const createBtn = prompt.querySelector('#btn-empty-create-template');
+    if (createBtn) {
+      createBtn.addEventListener('click', () => {
+        openBlueprintBuilder();
+      });
+    }
+  }
 }
 

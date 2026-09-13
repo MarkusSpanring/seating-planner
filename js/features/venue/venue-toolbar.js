@@ -2,7 +2,6 @@
 
 import { uiState } from '../../core/state.js';
 import { $ } from '../../utils/dom.js';
-import { addTable } from '../../utils/seating.js';
 import { renderBlueprintButtons } from '../blueprint-builder/blueprint-modal.js';
 
 let renderGuestListCallback = null;
@@ -85,15 +84,6 @@ export function toggleVenue() {
 export function initVenueToolbar() {
   const toggleBtn = $('btn-toggle-venue');
   if (toggleBtn) toggleBtn.addEventListener('click', toggleVenue);
-
-  const add7 = $('btn-add-7');
-  if (add7) add7.addEventListener('click', () => addTable(7));
-
-  const add8 = $('btn-add-8');
-  if (add8) add8.addEventListener('click', () => addTable(8));
-
-  const add10 = $('btn-add-10');
-  if (add10) add10.addEventListener('click', () => addTable(10));
 
   renderBlueprintButtons();
 }

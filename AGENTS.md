@@ -75,7 +75,8 @@ The app has a two-panel layout: a **Venue Panel** (left) and a **Guest Panel** (
 - **Single (non-family) guests** in split view are rendered in a card visually identical to the family card layout (with a 👤 icon).
 
 #### Venue Toolbar
-- Buttons to add tables: `+ 7er Tisch`, `+ 8er Tisch`, `+ 10er Tisch`. New tables appear near the canvas center with a random offset.
+- Custom blueprint buttons: dynamic `+ <Vorlage>` buttons spawn tables created from saved blueprints near the canvas center with a random offset. Predefined tables (`+ 7er`, etc.) have been removed.
+- **Empty venue prompt**: If a venue has no blueprints yet (`customBlueprints.length === 0`), a centered button is displayed in the venue to open the Tischvorlagen editor. Once at least one blueprint is created, the button disappears (and only reappears if all blueprints are deleted).
 - Table chips have been **removed**. Tables are managed and deleted via the Table Detail Modal.
 
 ---
@@ -122,7 +123,7 @@ Opened by clicking a table on the venue SVG. A wide (1250px) modal with two colu
 
 **Header controls (above both columns):**
 - **Rename table:** Text input saves automatically on blur, Enter, or modal close. If the name conflicts with another table, the numbers are swapped.
-- **Tischvorlage / Größe:** Dropdown listing both standard presets (7, 8, 10) and saved custom Vorlagen (blueprints). Options smaller than the current seated count are disabled. On change, seat numbers are **compacted** (guests renumbered onto active seats in order) so no one ends up on a non-existent or disabled seat.
+- **Tischvorlage / Größe:** Dropdown listing saved custom Vorlagen (blueprints). Options smaller than the current seated count are disabled. On change, seat numbers are **compacted** (guests renumbered onto active seats in order) so no one ends up on a non-existent or disabled seat.
 - **Status badges:** "Gäste platziert" (`table.fixed`) and "Plätze fixiert" (`table.seatsFixed`) styled as aligned toggle badges.
 - **"🗑️ Tisch entfernen"** button: removes the table (with confirmation if guests are assigned), then closes the modal.
 

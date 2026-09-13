@@ -39,27 +39,7 @@ export function populateTableDetailTemplateSelect(tbl) {
 
   const seatedAtTable = guestsAtTable(tbl.id).filter(g => g.seatNumber).length;
 
-  // 1. Standard round presets
-  const standardGroup = document.createElement('optgroup');
-  standardGroup.label = 'Standard-Tische (Rund)';
-  const presets = [
-    { count: 7, label: '7er Tisch' },
-    { count: 8, label: '8er Tisch' },
-    { count: 10, label: '10er Tisch' }
-  ];
-  presets.forEach(p => {
-    const opt = document.createElement('option');
-    opt.value = 'preset:' + p.count;
-    opt.textContent = p.label;
-    if (p.count < seatedAtTable) {
-      opt.disabled = true;
-      opt.textContent += ` (${seatedAtTable} Gäste zugewiesen)`;
-    }
-    standardGroup.appendChild(opt);
-  });
-  seatSel.appendChild(standardGroup);
-
-  // 2. Vorlagen (Custom Blueprints)
+  // Vorlagen (Custom Blueprints)
   const blueprints = Array.isArray(state.customBlueprints) ? state.customBlueprints : [];
   if (blueprints.length > 0) {
     const bpGroup = document.createElement('optgroup');
@@ -98,10 +78,6 @@ export function populateTableDetailTemplateSelect(tbl) {
     });
     if (matchingBp) {
       selectedValue = 'bp:' + matchingBp.id;
-    } else if (tbl.shape === 'circle' && !tbl.tableCustomR && (!tbl.seatsLong) && (!tbl.disabledSeats || tbl.disabledSeats.length === 0)) {
-      if (tbl.seatCount === 7) selectedValue = 'preset:7';
-      else if (tbl.seatCount === 8) selectedValue = 'preset:8';
-      else if (tbl.seatCount === 10) selectedValue = 'preset:10';
     }
   }
 
@@ -332,18 +308,7 @@ export function initTableDetailModal() {
     const val = this.value;
     if (val === 'current') return;
 
-    if (val.startsWith('preset:')) {
-      const count = parseInt(val.split(':')[1], 10);
-      tbl.shape = 'circle';
-      tbl.seatCount = count;
-      tbl.seatsLong = null;
-      tbl.seatsShort = null;
-      tbl.tableCustomR = null;
-      tbl.tableCustomW = null;
-      tbl.tableCustomH = null;
-      tbl.blueprintId = null;
-      tbl.disabledSeats = [];
-    } else if (val.startsWith('bp:')) {
+    if (val.startsWith('bp:')) {
       const bpId = val.slice(3);
       const bp = state.customBlueprints.find(b => b.id === bpId);
       if (bp) {

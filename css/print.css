@@ -33,6 +33,7 @@
   .venue-header,
   .modal-overlay,
   .seat-tooltip,
+  .venue-empty-blueprint-prompt,
   #venue-grid-dots {
     display: none !important;
   }

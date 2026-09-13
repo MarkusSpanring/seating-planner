@@ -179,8 +179,7 @@ export function saveBlueprint() {
     state.customBlueprints.push(bp);
   }
 
-  saveState();
-  renderBlueprintButtons();
+  saveAndRender();
   closeBlueprintBuilder();
 }
 
@@ -310,8 +309,7 @@ export function renderBlueprintExistingList() {
         if (uiState.editingBlueprintId === bp.id) {
           resetBlueprintForm();
         }
-        saveState();
-        renderBlueprintButtons();
+        saveAndRender();
         renderBlueprintExistingList();
       });
       row.appendChild(delBtn);

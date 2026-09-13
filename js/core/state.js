@@ -203,7 +203,7 @@ export function createVenue(name, copyGuests = false, venueWidth = DEFAULT_VENUE
     ageGroups: state.ageGroups.map(a => Object.assign({}, a)),
     tables: [],
     families: copyGuests ? state.families.map(f => Object.assign({}, f)) : [],
-    customBlueprints: state.customBlueprints.map(b => Object.assign({}, b)),
+    customBlueprints: [],
   };
 
   fetch('/api/venues/create', {
