@@ -13,15 +13,76 @@ export function renderDietModal() {
     const item = document.createElement('div');
     item.className = 'diet-item';
 
-    const swatch = document.createElement('div');
-    swatch.className = 'diet-swatch';
-    swatch.style.backgroundColor = d.color;
-    item.appendChild(swatch);
+    const isDefault = (d.id === 'none');
 
-    const name = document.createElement('span');
-    name.className = 'diet-name';
-    name.textContent = d.name;
-    item.appendChild(name);
+    if (isDefault) {
+      const swatch = document.createElement('div');
+      swatch.className = 'diet-swatch';
+      swatch.style.backgroundColor = d.color;
+      swatch.title = 'Standard (Keine Einschränkung)';
+      item.appendChild(swatch);
+
+      const name = document.createElement('span');
+      name.className = 'diet-name';
+      name.textContent = d.name;
+      item.appendChild(name);
+
+      const lockSpan = document.createElement('span');
+      lockSpan.className = 'settings-item-badge-standard';
+      lockSpan.textContent = 'Standard';
+      item.appendChild(lockSpan);
+    } else {
+      const colorPicker = document.createElement('input');
+      colorPicker.type = 'color';
+      colorPicker.className = 'diet-swatch-picker';
+      colorPicker.value = d.color;
+      colorPicker.title = `Farbe für „${d.name}“ ändern`;
+      colorPicker.addEventListener('click', e => { e.stopPropagation(); });
+      colorPicker.addEventListener('input', () => {
+        d.color = colorPicker.value;
+        saveAndRender();
+      });
+      colorPicker.addEventListener('change', () => {
+        d.color = colorPicker.value;
+        saveAndRender();
+      });
+      item.appendChild(colorPicker);
+
+      const nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 'settings-item-name-input';
+      nameInput.value = d.name;
+      nameInput.placeholder = 'Name der Diät / Allergie…';
+      nameInput.title = 'Bezeichnung bearbeiten (wird überall automatisch aktualisiert)';
+
+    let lastName = d.name;
+    const commit = () => {
+      const val = nameInput.value.trim();
+      if (val && val !== lastName) {
+        d.name = val;
+        lastName = val;
+        saveAndRender();
+      } else if (!val) {
+        nameInput.value = lastName;
+      }
+    };
+
+    nameInput.addEventListener('input', () => {
+      const val = nameInput.value.trim();
+      if (val) d.name = val;
+    });
+    nameInput.addEventListener('blur', commit);
+    nameInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        commit();
+        nameInput.blur();
+      } else if (e.key === 'Escape') {
+        nameInput.value = lastName;
+        d.name = lastName;
+        nameInput.blur();
+      }
+    });
+    item.appendChild(nameInput);
 
     if (d.id !== 'none') {
       const btn = document.createElement('button');
@@ -38,8 +99,9 @@ export function renderDietModal() {
       });
       item.appendChild(btn);
     }
+  }
 
-    body.appendChild(item);
+  body.appendChild(item);
   });
 
   // Add new row
