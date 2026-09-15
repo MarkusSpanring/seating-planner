@@ -35,8 +35,6 @@ export function toggleVenue() {
     if (fInput) fInput.style.display = 'inline-block';
     const addBtn = $('btn-add-guest');
     if (addBtn) addBtn.style.display = 'block';
-    const settingsBtn = $('btn-settings');
-    if (settingsBtn) settingsBtn.style.display = 'inline-block';
     const exBtn = $('btn-expand-all');
     if (exBtn) exBtn.style.display = 'none';
   } else {
@@ -58,8 +56,6 @@ export function toggleVenue() {
     }
     const addBtn = $('btn-add-guest');
     if (addBtn) addBtn.style.display = 'none';
-    const settingsBtn = $('btn-settings');
-    if (settingsBtn) settingsBtn.style.display = 'none';
     const exBtn = $('btn-expand-all');
     if (exBtn) {
       exBtn.style.display = 'inline-flex';

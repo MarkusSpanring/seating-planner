@@ -52,6 +52,9 @@
         <button class="btn btn-sm btn-accent" id="btn-print" title="Saalplan und Tischübersichten drucken oder als PDF exportieren"
           style="background-color: var(--bg-glass); border-color: var(--border-color); color: var(--text-primary);">
           🖨️ Venue drucken</button>
+        <button class="btn btn-sm" id="btn-settings" title="Einstellungen verwalten (Diäten, Altersgruppen, CSV-Export/Import, Updates)"
+          style="background-color: var(--bg-glass); border-color: var(--border-color); color: var(--text-primary);">
+          ⚙️ Einstellungen</button>
         <span class="stats-badge" id="stats-badge" title="Platzierungs-Übersicht: Platzierte Gäste / Gesamtgäste und Gesamtkapazität">
           <strong>0</strong> / 0 platziert · 0 Plätze gesamt
         </span>
@@ -96,7 +99,6 @@
             <button class="btn btn-sm" id="btn-add-guest" style="display: none;" title="Neuen Gast zur Gästeliste hinzufügen">➕ Gast hinzufügen</button>
             <button class="btn btn-sm" id="btn-expand-all" title="Alle Tischgruppen ausklappen bzw. einklappen">⬇ Alle ausklappen</button>
             <input type="file" accept=".csv" id="csv-input" class="file-input-hidden" title="CSV-Datei auswählen" />
-            <button class="btn btn-sm" id="btn-settings" style="display: none;" title="Einstellungen verwalten (Diäten, Altersgruppen, CSV-Export/Import)">⚙️ Einstellungen</button>
           </div>
         </div>
         <div class="panel-body" id="guest-list"></div>
