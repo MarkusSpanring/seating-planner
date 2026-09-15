@@ -13,6 +13,9 @@ echo ""
 # Make all launch scripts executable
 chmod +x "$CDIR/install.command" "$CDIR/start.command" "$CDIR/update.command" "$CDIR/install.sh" "$CDIR/start.sh" "$CDIR/update.sh" 2>/dev/null
 
+# Remove macOS quarantine flag so scripts can be double-clicked without Gatekeeper warnings
+xattr -d com.apple.quarantine "$CDIR/install.command" "$CDIR/start.command" "$CDIR/update.command" 2>/dev/null
+
 # 1. Check for python3
 if command -v python3 >/dev/null 2>&1; then
     PY_VER=$(python3 --version 2>&1)
