@@ -214,8 +214,8 @@ function buildTableSVGForPrint(tbl) {
         center.setAttribute('y', String(rectMinY));
         center.setAttribute('width', String(rectMaxX - rectMinX));
         center.setAttribute('height', String(rectMaxY - rectMinY));
-        center.setAttribute('fill', '#f3f4f6');
-        center.setAttribute('stroke', '#d1d5db');
+        center.setAttribute('fill', '#ffffff');
+        center.setAttribute('stroke', '#9ca3af');
         center.setAttribute('stroke-width', '2.5');
         center.setAttribute('rx', isSplit ? '0' : '6');
         g.appendChild(center);
@@ -271,8 +271,8 @@ function buildTableSVGForPrint(tbl) {
         center.setAttribute('cx', '0');
         center.setAttribute('cy', '0');
         center.setAttribute('r', String(geo.r));
-        center.setAttribute('fill', '#f3f4f6');
-        center.setAttribute('stroke', '#d1d5db');
+        center.setAttribute('fill', '#ffffff');
+        center.setAttribute('stroke', '#9ca3af');
         center.setAttribute('stroke-width', '2.5');
         g.appendChild(center);
       }

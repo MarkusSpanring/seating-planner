@@ -2,6 +2,7 @@ import { SEAT_R_CM } from '../../core/constants.js';
 import { state, uiState } from '../../core/state.js';
 import { $ } from '../../utils/dom.js';
 import { getTableBounds, getTableExtents } from '../../utils/geometry.js';
+import { renderLegends } from '../venue/venue-tooltips.js';
 import { renderPrintTablePages } from './print-pages.js';
 
 let savedViewBox = null;
@@ -16,6 +17,15 @@ export function initPrintManager() {
 
   window.addEventListener('beforeprint', () => {
     renderPrintTablePages();
+
+    const globalUsedDiets = {};
+    state.guests.forEach(g => {
+      if (g.tableId && g.seatNumber && g.dietId !== 'none') {
+        globalUsedDiets[g.dietId] = true;
+      }
+    });
+    renderLegends(Object.keys(globalUsedDiets));
+
     const svgElement = uiState.svgElement;
     if (!svgElement || state.tables.length === 0) return;
 
@@ -40,6 +50,8 @@ export function initPrintManager() {
       bg.setAttribute('data-old-y', bg.getAttribute('y'));
       bg.setAttribute('data-old-w', bg.getAttribute('width'));
       bg.setAttribute('data-old-h', bg.getAttribute('height'));
+      bg.setAttribute('data-old-display', bg.style.display || '');
+      bg.style.display = 'none';
 
       bg.setAttribute('x', String(vx));
       bg.setAttribute('y', String(vy));
@@ -59,6 +71,10 @@ export function initPrintManager() {
       bg.setAttribute('y', bg.getAttribute('data-old-y'));
       bg.setAttribute('width', bg.getAttribute('data-old-w'));
       bg.setAttribute('height', bg.getAttribute('data-old-h'));
+      if (bg.hasAttribute('data-old-display')) {
+        bg.style.display = bg.getAttribute('data-old-display');
+        bg.removeAttribute('data-old-display');
+      }
     }
 
     if (svgElement && savedViewBox) {

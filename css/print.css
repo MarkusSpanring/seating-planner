@@ -10,15 +10,32 @@
     margin: 0;
   }
 
+  /* Override all theme variables to light/white for zero ink waste */
+  :root {
+    --bg-primary: #ffffff !important;
+    --bg-secondary: #ffffff !important;
+    --bg-card: #ffffff !important;
+    --bg-glass: #ffffff !important;
+    --border-color: #d1d5db !important;
+    --border-highlight: #9ca3af !important;
+    --text-primary: #111827 !important;
+    --text-secondary: #4b5563 !important;
+    --text-muted: #6b7280 !important;
+  }
+
   html,
   body {
     height: auto !important;
     min-height: 100vh !important;
     overflow: visible !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #111827 !important;
   }
 
   body {
-    background: #fff !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -38,13 +55,16 @@
     display: none !important;
   }
 
-  /* Make the main venue canvas background invisible/white on print */
+  /* Make the main venue canvas background invisible/hidden on print to waste 0 ink */
   #venue-bg-rect {
-    fill: #fff !important;
+    display: none !important;
+    fill: none !important;
     stroke: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
   }
 
-  /* Flatten the DOM tree for the venue page */
+  /* Flatten the DOM tree for the venue page with white background */
   #app,
   .app-body,
   .venue-panel,
@@ -60,41 +80,61 @@
     flex: none !important;
     margin: 0 !important;
     padding: 0 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
     overflow: hidden !important;
+    page-break-after: always !important;
+    break-after: page !important;
   }
 
   .venue-canvas-area {
-    display: block !important;
-    position: relative !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
+    justify-content: space-between !important;
     height: 98vh !important;
     max-height: 98vh !important;
     min-height: 0 !important;
     width: 100vw !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 20px 24px !important;
+    box-sizing: border-box !important;
+    gap: 20px !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
     overflow: hidden !important;
+    page-break-after: always !important;
+    break-after: page !important;
   }
 
-  /* Force venue container to safely fit on 1 page */
+  /* Force venue container to safely fit on 1 page without overlapping legend */
   .venue-container {
-    display: block !important;
-    position: static !important;
-    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
     height: 100% !important;
-    max-height: 98vh !important;
+    max-height: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    background: #fff !important;
-    page-break-after: always;
-    break-after: page;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
 
-  .venue-container svg {
+  .venue-container svg,
+  .venue-svg {
     display: block !important;
     width: 100% !important;
     height: 100% !important;
     max-width: 100% !important;
     max-height: 100% !important;
+    background: transparent !important;
+    background-color: transparent !important;
   }
 
   /* Venue SVG colour mapping for light paper print */
@@ -104,13 +144,13 @@
     stroke: #d1d5db !important;
   }
 
-  /* Table centers (normal and fixed) */
+  /* Table centers: pure white with clear border (zero background ink) */
   .venue-svg circle[fill="rgba(139,92,246,0.15)"],
   .venue-svg circle[fill="rgba(34,197,94,0.12)"],
   .venue-svg rect[fill="rgba(139,92,246,0.15)"],
   .venue-svg rect[fill="rgba(34,197,94,0.12)"] {
-    fill: #f3f4f6 !important;
-    stroke: #d1d5db !important;
+    fill: #ffffff !important;
+    stroke: #9ca3af !important;
   }
 
   /* Text elements (table numbers, seat numbers, etc) */
@@ -124,15 +164,15 @@
   .venue-svg circle[stroke-width="1.5"],
   .venue-svg rect[stroke-width="1.5"],
   .venue-svg polygon[stroke-width="1.5"] {
-    fill: #fff !important;
+    fill: #ffffff !important;
     stroke: #d1d5db !important;
   }
 
-  /* Occupied seats (no diet) */
+  /* Occupied seats (no diet): pure white with clear border */
   .venue-svg circle[stroke-width="2.5"][fill="rgba(255,255,255,0.06)"],
   .venue-svg rect[stroke-width="2.5"][fill="rgba(255,255,255,0.06)"],
   .venue-svg polygon[stroke-width="2.5"][fill="rgba(255,255,255,0.06)"] {
-    fill: #e5e7eb !important;
+    fill: #ffffff !important;
     stroke: #9ca3af !important;
   }
 
@@ -143,13 +183,29 @@
     stroke: #111 !important;
   }
 
-  /* Venue Legends Overlay for print */
+  /* Venue Legends Column for print (dedicated right column, never covers tables) */
   .venue-legends-overlay {
     display: flex !important;
-    position: absolute !important;
-    top: 24px !important;
-    right: 24px !important;
+    flex-direction: column !important;
+    position: static !important;
+    top: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    flex: 0 0 190px !important;
+    width: 190px !important;
+    min-width: 170px !important;
+    max-width: 220px !important;
+    gap: 12px !important;
+    justify-content: flex-start !important;
+    align-self: flex-start !important;
+    margin: 0 !important;
+    padding: 0 !important;
     z-index: 10 !important;
+  }
+
+  .venue-legends-overlay:empty {
+    display: none !important;
   }
 
   .venue-legend-card {
@@ -158,6 +214,8 @@
     box-shadow: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   .venue-legend-title {
