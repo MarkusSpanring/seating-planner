@@ -14,7 +14,8 @@ import {
   getAvailableTablesForGroup,
   assignGroupToTable,
   unassignedGuests,
-  guestsAtTable
+  guestsAtTable,
+  isTableFullySeated
 } from '../../utils/seating.js';
 import { makeSearchableGuestPicker } from '../../components/searchable-picker.js';
 import { renderGuestCard } from './guest-row.js';
@@ -217,16 +218,27 @@ export function renderGuestGroup(key, title, guests, maxSeats, tableObj, onReren
 
   // "Fixiert" checkbox
   if (tableObj) {
+    const isFullySeated = isTableFullySeated(tableObj);
+    if (!isFullySeated && (tableObj.fixed || tableObj.seatsFixed)) {
+      tableObj.fixed = false;
+      tableObj.seatsFixed = false;
+    }
+
     const fixedLabel = document.createElement('label');
-    fixedLabel.className = 'table-fixed-label';
-    fixedLabel.title = 'Tisch als platziert/fixiert markieren (grüne Umrandung, standardmäßig eingeklappt)';
+    fixedLabel.className = 'table-fixed-label' + (!isFullySeated ? ' disabled' : '');
+    fixedLabel.title = isFullySeated
+      ? 'Tisch als platziert/fixiert markieren (grüne Umrandung, standardmäßig eingeklappt)'
+      : 'Kann erst aktiviert werden, wenn alle Plätze belegt oder deaktiviert sind';
     fixedLabel.addEventListener('click', e => { e.stopPropagation(); });
 
     const fixedCb = document.createElement('input');
     fixedCb.type = 'checkbox';
     fixedCb.checked = !!tableObj.fixed;
+    fixedCb.disabled = !isFullySeated;
     fixedCb.className = 'table-fixed-cb';
-    fixedCb.title = 'Tisch als platziert/fixiert markieren';
+    fixedCb.title = isFullySeated
+      ? 'Tisch als platziert/fixiert markieren'
+      : 'Kann erst aktiviert werden, wenn alle Plätze belegt oder deaktiviert sind';
     fixedCb.addEventListener('change', e => {
       e.stopPropagation();
       tableObj.fixed = fixedCb.checked;

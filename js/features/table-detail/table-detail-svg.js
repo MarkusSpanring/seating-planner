@@ -191,6 +191,8 @@ export function renderTableDetailSVG(tableId) {
             if (!confirm(`Platz ${seat.number} ist belegt von ${occupant.firstName} ${occupant.lastName || ''}. Gast wird nicht mehr zugewiesen. Fortfahren?`)) return;
             occupant.tableId = null;
             occupant.seatNumber = null;
+            tblRef.fixed = false;
+            tblRef.seatsFixed = false;
           }
           tblRef.disabledSeats.push(seat.number);
         }
@@ -209,6 +211,10 @@ export function renderTableDetailSVG(tableId) {
           const tmpSeat = uiState.selectedDetailSeat;
           if (gA) gA.seatNumber = seat.number;
           if (gB) gB.seatNumber = tmpSeat;
+          const tblObj = getTable(tblId);
+          if (tblObj) {
+            tblObj.seatsFixed = false;
+          }
           uiState.selectedDetailSeat = null;
           saveAndRender();
         }

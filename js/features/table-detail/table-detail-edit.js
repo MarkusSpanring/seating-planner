@@ -85,6 +85,8 @@ export function rotateCurrentTable() {
   tbl.seatsLong = tbl.seatsShort;
   tbl.seatsShort = temp;
 
+  tbl.seatsFixed = false;
+
   saveAndRender();
 }
 

@@ -251,11 +251,20 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth,
       e.stopPropagation();
       const v = seatSel.value;
       const newSeat = v ? parseInt(v) : null;
+      const tbl = guest.tableId ? getTable(guest.tableId) : null;
 
       if (newSeat) {
         const existingGuest = guestAtSeat(guest.tableId, newSeat);
         if (existingGuest && existingGuest.id !== guest.id) {
           existingGuest.seatNumber = guest.seatNumber;
+        }
+        if (tbl) {
+          tbl.seatsFixed = false;
+        }
+      } else {
+        if (tbl) {
+          tbl.fixed = false;
+          tbl.seatsFixed = false;
         }
       }
       guest.seatNumber = newSeat;
@@ -377,8 +386,16 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth,
       removeBtn.style.fontSize = '0.75rem';
       removeBtn.addEventListener('click', e => {
         e.stopPropagation();
+        const tblId = guest.tableId;
         guest.tableId = null;
         guest.seatNumber = null;
+        if (tblId) {
+          const tbl = getTable(tblId);
+          if (tbl) {
+            tbl.fixed = false;
+            tbl.seatsFixed = false;
+          }
+        }
         saveAndRender();
       });
       rightIcons.appendChild(removeBtn);
@@ -393,6 +410,14 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth,
       delBtn.addEventListener('click', e => {
         e.stopPropagation();
         if (confirm('Diesen Gast wirklich unwiderruflich löschen?')) {
+          const tblId = guest.tableId;
+          if (tblId) {
+            const tbl = getTable(tblId);
+            if (tbl) {
+              tbl.fixed = false;
+              tbl.seatsFixed = false;
+            }
+          }
           const fam = getFamilyForGuest(guest.id);
           if (fam) removeFromFamily(fam.id, guest.id);
           state.guests = state.guests.filter(g => g.id !== guest.id);

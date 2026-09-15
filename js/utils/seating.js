@@ -70,6 +70,18 @@ export function getActiveSeatNumbers(table) {
   return active;
 }
 
+export function isTableFullySeated(table) {
+  if (!table) return false;
+  const activeSeats = getActiveSeatNumbers(table);
+  if (activeSeats.length === 0) return false;
+  const seatedSeatNums = new Set(
+    state.guests
+      .filter(g => g.tableId === table.id && g.seatNumber && activeSeats.includes(g.seatNumber))
+      .map(g => g.seatNumber)
+  );
+  return activeSeats.every(sn => seatedSeatNums.has(sn));
+}
+
 export function addTable(seatCount) {
   const used = {};
   state.tables.forEach(t => {
@@ -129,10 +141,19 @@ export function getAvailableTablesForGroup(guestsInGroup) {
 }
 
 export function assignGroupToTable(guestsInGroup, tableIdStr) {
+  const oldTableIds = new Set(guestsInGroup.map(g => g.tableId).filter(Boolean));
+
   if (!tableIdStr || tableIdStr === '') {
     guestsInGroup.forEach(g => {
       g.tableId = null;
       g.seatNumber = null;
+    });
+    oldTableIds.forEach(id => {
+      const t = getTable(id);
+      if (t) {
+        t.fixed = false;
+        t.seatsFixed = false;
+      }
     });
     return;
   }
@@ -154,5 +175,15 @@ export function assignGroupToTable(guestsInGroup, tableIdStr) {
     g.tableId = tId;
     g.seatNumber = freeSeats[idx] || null;
   });
+
+  oldTableIds.forEach(id => {
+    const t = getTable(id);
+    if (t) {
+      t.fixed = false;
+      t.seatsFixed = false;
+    }
+  });
+  tObj.fixed = false;
+  tObj.seatsFixed = false;
 }
 

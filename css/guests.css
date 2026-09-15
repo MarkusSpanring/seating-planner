@@ -137,6 +137,16 @@
   color: #22c55e;
 }
 
+.table-fixed-label.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.table-fixed-label.disabled:hover {
+  color: var(--text-muted);
+}
+
 .table-fixed-cb {
   appearance: none;
   -webkit-appearance: none;

@@ -6,7 +6,8 @@ import {
   getTable,
   guestsAtTable,
   getActiveSeatNumbers,
-  removeTable
+  removeTable,
+  isTableFullySeated
 } from '../../utils/seating.js';
 import { renderGuestCard } from '../guest-list/guest-row.js';
 import { zoomFit, renderTableDetailSVG, initTableDetailSVGNavigation } from './table-detail-svg.js';
@@ -21,9 +22,6 @@ export function openTableDetail(tableId) {
   $('table-detail-rename').value = tbl.number;
 
   populateTableDetailTemplateSelect(tbl);
-
-  $('table-detail-table-fixed').checked = !!tbl.fixed;
-  $('table-detail-fixed').checked = !!tbl.seatsFixed;
   updateTableDetailModalVisuals(tbl);
 
   zoomFit(tbl.id);
@@ -98,6 +96,13 @@ export function populateTableDetailTemplateSelect(tbl) {
 export function updateTableDetailModalVisuals(tbl) {
   const contentNode = $('table-detail-modal-content');
   if (!contentNode) return;
+
+  const isFullySeated = isTableFullySeated(tbl);
+  if (!isFullySeated && (tbl.fixed || tbl.seatsFixed)) {
+    tbl.fixed = false;
+    tbl.seatsFixed = false;
+  }
+
   if (tbl.fixed && tbl.seatsFixed) {
     contentNode.style.border = '2px solid #22c55e';
     contentNode.style.boxShadow = '0 0 15px rgba(34, 197, 94, 0.4)';
@@ -106,13 +111,33 @@ export function updateTableDetailModalVisuals(tbl) {
     contentNode.style.boxShadow = '';
   }
 
+  const cbTableFixed = $('table-detail-table-fixed');
+  if (cbTableFixed) {
+    cbTableFixed.disabled = !isFullySeated;
+    cbTableFixed.checked = !!tbl.fixed;
+  }
+
+  const cbSeatFixed = $('table-detail-fixed');
+  if (cbSeatFixed) {
+    cbSeatFixed.disabled = !isFullySeated;
+    cbSeatFixed.checked = !!tbl.seatsFixed;
+  }
+
   const lblTableFixed = $('td-lbl-table-fixed');
   if (lblTableFixed) {
+    lblTableFixed.classList.toggle('disabled', !isFullySeated);
     lblTableFixed.classList.toggle('active', !!tbl.fixed);
+    lblTableFixed.title = isFullySeated
+      ? 'Tisch im Saalplan hervorheben und standardmäßig einklappen'
+      : 'Kann erst aktiviert werden, wenn alle Plätze belegt oder deaktiviert sind';
   }
   const lblSeatFixed = $('td-lbl-seat-fixed');
   if (lblSeatFixed) {
+    lblSeatFixed.classList.toggle('disabled', !isFullySeated);
     lblSeatFixed.classList.toggle('active', !!tbl.seatsFixed);
+    lblSeatFixed.title = isFullySeated
+      ? 'Alle Sitzplatzränder im Saalplan grün hervorheben (Sitzordnung fixiert)'
+      : 'Kann erst aktiviert werden, wenn alle Plätze belegt oder deaktiviert sind';
   }
 }
 
@@ -175,6 +200,22 @@ function renderEmptySeatRow(tbl, seatNum) {
   const picker = makeSeatGuestPicker(`Gast für Platz ${seatNum} suchen & zuweisen…`, tbl.id, selectedGuestId => {
     const guest = state.guests.find(g => g.id === selectedGuestId);
     if (guest) {
+      const prevTableId = guest.tableId;
+      const prevSeat = guest.seatNumber;
+      if (prevTableId && prevTableId !== tbl.id) {
+        const prevTbl = getTable(prevTableId);
+        if (prevTbl) {
+          prevTbl.fixed = false;
+          prevTbl.seatsFixed = false;
+        }
+        tbl.fixed = false;
+        tbl.seatsFixed = false;
+      } else if (!prevTableId) {
+        tbl.fixed = false;
+        tbl.seatsFixed = false;
+      } else if (prevTableId === tbl.id && prevSeat !== seatNum) {
+        tbl.seatsFixed = false;
+      }
       guest.tableId = tbl.id;
       guest.seatNumber = seatNum;
       saveAndRender();
@@ -396,6 +437,10 @@ export function initTableDetailModal() {
       }
     }
 
+    // Uncheck both when template/size changes
+    tbl.fixed = false;
+    tbl.seatsFixed = false;
+
     // Compact seat numbers so nobody ends up on a non-existent / disabled seat
     const activeSeats = getActiveSeatNumbers(tbl);
     const seated = state.guests
@@ -415,7 +460,14 @@ export function initTableDetailModal() {
     if (!tblId) return;
     const tbl = state.tables.find(t => t.id === tblId);
     if (!tbl) return;
+    if (!isTableFullySeated(tbl)) {
+      this.checked = false;
+      return;
+    }
     tbl.seatsFixed = this.checked;
+    if (this.checked) {
+      tbl.fixed = true;
+    }
     updateTableDetailModalVisuals(tbl);
     saveAndRender();
   });
@@ -425,6 +477,10 @@ export function initTableDetailModal() {
     if (!tblId) return;
     const tbl = state.tables.find(t => t.id === tblId);
     if (!tbl) return;
+    if (!isTableFullySeated(tbl)) {
+      this.checked = false;
+      return;
+    }
     tbl.fixed = this.checked;
     if (!this.checked) {
       tbl.seatsFixed = false;
