@@ -11,6 +11,7 @@ import {
 import { renderGuestCard } from '../guest-list/guest-row.js';
 import { zoomFit, renderTableDetailSVG, initTableDetailSVGNavigation } from './table-detail-svg.js';
 import { initTableDetailEdit } from './table-detail-edit.js';
+import { makeSeatGuestPicker } from '../../components/searchable-picker.js';
 
 export function openTableDetail(tableId) {
   const tbl = getTable(tableId);
@@ -143,6 +144,7 @@ export function closeTableDetailModal() {
   uiState.currentEditingTableId = null;
   uiState.selectedDetailSeat = null; // clear swap
   uiState.detailEditMode = false;
+  document.querySelectorAll('.table-detail-picker-dropdown').forEach(el => el.remove());
 
   const emBtn = $('btn-edit-mode');
   if (emBtn) emBtn.classList.remove('active');
@@ -155,18 +157,55 @@ export function closeTableDetailModal() {
   });
 }
 
+function renderEmptySeatRow(tbl, seatNum) {
+  const row = document.createElement('div');
+  row.className = 'table-detail-empty-seat-row';
+
+  const badge = document.createElement('div');
+  badge.className = 'empty-seat-badge';
+  badge.innerHTML = `
+    <span class="empty-seat-num">Platz ${seatNum}</span>
+    <span class="empty-seat-status">Frei</span>
+  `;
+  row.appendChild(badge);
+
+  const searchWrap = document.createElement('div');
+  searchWrap.className = 'empty-seat-search-wrap';
+
+  const picker = makeSeatGuestPicker(`Gast für Platz ${seatNum} suchen & zuweisen…`, tbl.id, selectedGuestId => {
+    const guest = state.guests.find(g => g.id === selectedGuestId);
+    if (guest) {
+      guest.tableId = tbl.id;
+      guest.seatNumber = seatNum;
+      saveAndRender();
+    }
+  });
+
+  searchWrap.appendChild(picker);
+  row.appendChild(searchWrap);
+
+  return row;
+}
+
 export function renderTableDetailGuests(tableId) {
   const container = $('table-detail-guests');
   if (!container) return;
+
+  // Clean up any existing floating dropdowns from previous renders
+  document.querySelectorAll('.table-detail-picker-dropdown').forEach(el => el.remove());
+
   container.innerHTML = '';
 
+  const tbl = getTable(tableId);
+  if (!tbl) return;
+
   const guests = guestsAtTable(tableId);
-  if (guests.length === 0) {
-    container.innerHTML = '<p style="color:var(--text-muted); font-size: 0.85rem; text-align:center;">Keine Gäste zugewiesen</p>';
+  const activeSeats = getActiveSeatNumbers(tbl);
+
+  if (activeSeats.length === 0 && guests.length === 0) {
+    container.innerHTML = '<p style="color:var(--text-muted); font-size: 0.85rem; text-align:center; padding: 24px 0;">Keine aktiven Plätze verfügbar</p>';
     return;
   }
-
-  guests.sort((a, b) => (a.seatNumber || 999) - (b.seatNumber || 999));
 
   const hr = document.createElement('div');
   hr.className = 'guest-list-header guest-list-header-full';
@@ -184,9 +223,33 @@ export function renderTableDetailGuests(tableId) {
   `;
   container.appendChild(hr);
 
+  const seatToGuests = {};
+  const unseatedAtTable = [];
   guests.forEach(g => {
-    container.appendChild(renderGuestCard(g, true, true, true, true));
+    if (g.seatNumber && activeSeats.includes(g.seatNumber)) {
+      if (!seatToGuests[g.seatNumber]) seatToGuests[g.seatNumber] = [];
+      seatToGuests[g.seatNumber].push(g);
+    } else {
+      unseatedAtTable.push(g);
+    }
   });
+
+  activeSeats.forEach(seatNum => {
+    const seatGuests = seatToGuests[seatNum];
+    if (seatGuests && seatGuests.length > 0) {
+      seatGuests.forEach(g => {
+        container.appendChild(renderGuestCard(g, true, true, true, true));
+      });
+    } else {
+      container.appendChild(renderEmptySeatRow(tbl, seatNum));
+    }
+  });
+
+  if (unseatedAtTable.length > 0) {
+    unseatedAtTable.forEach(g => {
+      container.appendChild(renderGuestCard(g, true, true, true, true));
+    });
+  }
 }
 
 function mountTableDetailModal() {
@@ -248,7 +311,7 @@ function mountTableDetailModal() {
               </div>
             </div>
             <div class="table-detail-right-panel" id="table-detail-right-panel">
-              <h3 class="table-detail-guests-header">Zugewiesene Gäste</h3>
+              <h3 class="table-detail-guests-header">Sitzplätze & Gäste</h3>
               <div class="table-detail-guests-list" id="table-detail-guests"></div>
             </div>
           </div>
@@ -265,6 +328,15 @@ export function initTableDetailModal() {
   initTableDetailEdit();
 
   $('table-detail-close').addEventListener('click', closeTableDetailModal);
+
+  const guestListEl = $('table-detail-guests');
+  if (guestListEl) {
+    guestListEl.addEventListener('scroll', () => {
+      document.querySelectorAll('.table-detail-picker-dropdown').forEach(d => {
+        d.style.display = 'none';
+      });
+    });
+  }
 
   const renameInput = $('table-detail-rename');
   if (renameInput) {
