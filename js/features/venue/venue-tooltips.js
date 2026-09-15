@@ -135,5 +135,3 @@ export function renderLegends(svgOrDietIds, maybeDietIds) {
 
   container.innerHTML = html;
 }
-
-

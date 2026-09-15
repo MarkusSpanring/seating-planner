@@ -85,6 +85,10 @@ export function rotateCurrentTable() {
   tbl.seatsLong = tbl.seatsShort;
   tbl.seatsShort = temp;
 
+  const tempW = tbl.tableCustomW;
+  tbl.tableCustomW = tbl.tableCustomH;
+  tbl.tableCustomH = tempW;
+
   tbl.seatsFixed = false;
 
   saveAndRender();
