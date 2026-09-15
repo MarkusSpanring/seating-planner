@@ -22,6 +22,7 @@ export function renderGuestList() {
   updateStats();
   const panel = $('guest-list');
   if (!panel) return;
+  panel.classList.remove('is-scrolling');
   panel.innerHTML = '';
 
   if (state.guests.length === 0) {
@@ -80,6 +81,27 @@ export function initGuestList() {
       }
       renderGuestList();
     });
+  }
+
+  const panel = $('guest-list');
+  if (panel) {
+    let scrollTimeout;
+    panel.addEventListener('scroll', () => {
+      if (!panel.classList.contains('is-scrolling')) {
+        panel.classList.add('is-scrolling');
+      }
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        panel.classList.remove('is-scrolling');
+      }, 80);
+    }, { passive: true });
+
+    panel.addEventListener('pointerdown', () => {
+      if (panel.classList.contains('is-scrolling')) {
+        clearTimeout(scrollTimeout);
+        panel.classList.remove('is-scrolling');
+      }
+    }, { capture: true, passive: true });
   }
 }
 

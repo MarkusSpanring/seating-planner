@@ -58,7 +58,7 @@ body {
   font-size: 0.82rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition);
+  transition: background-color var(--transition), border-color var(--transition), box-shadow var(--transition), color var(--transition);
   white-space: nowrap;
 }
 
