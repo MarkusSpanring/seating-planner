@@ -1,0 +1,27 @@
+# Sitzplan user data & backups (NEVER commit or overwrite user data)
+states/
+states_backup*/
+sitzplan_state.json*
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Operating System files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# User data exports, images and test artifacts
+*.csv
+*.pdf
+*.jpg
+*.jpeg
+*.png
+instructions.md
+implementation_plan.md
+
+
