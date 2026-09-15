@@ -66,12 +66,24 @@
     flex-direction: column;
   }
 
+  .venue-panel.venue-collapsed {
+    margin-right: 0 !important;
+    margin-bottom: -16px !important;
+    height: 0px !important;
+    max-height: 0px !important;
+  }
+
   .guest-panel {
     width: 100% !important;
     min-width: 100% !important;
     max-height: 50vh;
     border-left: none;
     border-top: 1px solid var(--border-color);
+  }
+
+  .guest-panel.guest-panel-expanded {
+    max-height: none;
+    flex: 1 1 auto;
   }
 }
 

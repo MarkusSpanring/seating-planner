@@ -18,7 +18,7 @@ import {
 } from '../../utils/family.js';
 import { makeSearchableGuestPicker } from '../../components/searchable-picker.js';
 
-export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth) {
+export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth, isTableDetailModal = false) {
   const diet = getDiet(guest.dietId);
   const table = guest.tableId ? getTable(guest.tableId) : null;
   const taken = guest.tableId ? takenSeats(guest.tableId, guest.id) : [];
@@ -361,57 +361,46 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth)
   rightIcons.appendChild(dot);
 
   if (isDetailView) {
-    if (uiState.venueCollapsed && !getFamilyForGuest(guest.id)) {
-      const famBtn = document.createElement('button');
-      famBtn.className = 'btn btn-sm family-header-action-btn';
-      famBtn.innerHTML = '👨‍👩‍👧‍👦';
-      famBtn.title = 'Gast mit Familie oder anderem Gast verknüpfen';
-      famBtn.style.padding = '0px 4px';
-      famBtn.style.marginRight = '2px';
-      famBtn.style.fontSize = '0.72rem';
-      famBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        const existingWrap = rightIcons.querySelector('.single-fam-picker-wrap');
-        if (existingWrap) {
-          existingWrap.remove();
-          return;
-        }
-        const pickerWrap = document.createElement('div');
-        pickerWrap.className = 'single-fam-picker-wrap';
-        pickerWrap.style.cssText = 'position:absolute; right:36px; z-index:10; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; padding:4px 6px; box-shadow:0 4px 14px rgba(0,0,0,0.4); display:flex; align-items:center; gap:4px;';
-        const picker = makeSearchableGuestPicker('Partner / Gast wählen…', [guest.id], selectedId => {
-          createFamily(guest.id, selectedId);
-        }, true);
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = '✕';
-        closeBtn.style.cssText = 'background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.75rem; padding:0 4px;';
-        closeBtn.addEventListener('click', ev => { ev.stopPropagation(); pickerWrap.remove(); });
-        pickerWrap.appendChild(picker);
-        pickerWrap.appendChild(closeBtn);
-        rightIcons.insertBefore(pickerWrap, famBtn);
-        const pInput = picker.querySelector('input');
-        if (pInput) setTimeout(() => pInput.focus(), 20);
-      });
+    if (uiState.venueCollapsed && !getFamilyForGuest(guest.id) && !isTableDetailModal) {
+      const famBtn = createFamilyButton(guest, rightIcons);
       rightIcons.appendChild(famBtn);
     }
 
-    const delBtn = document.createElement('button');
-    delBtn.className = 'btn btn-sm btn-danger guest-delete-btn spreadsheet-cell-control';
-    delBtn.setAttribute('data-grid-col', '8');
-    delBtn.innerHTML = '🗑️';
-    delBtn.title = 'Gast endgültig löschen';
-    delBtn.style.padding = '0px 4px';
-    delBtn.style.marginLeft = '4px';
-    delBtn.addEventListener('click', e => {
-      e.stopPropagation();
-      if (confirm('Diesen Gast wirklich unwiderruflich löschen?')) {
-        const fam = getFamilyForGuest(guest.id);
-        if (fam) removeFromFamily(fam.id, guest.id);
-        state.guests = state.guests.filter(g => g.id !== guest.id);
+    if (isTableDetailModal) {
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'btn btn-sm btn-danger guest-remove-btn spreadsheet-cell-control';
+      removeBtn.setAttribute('data-grid-col', '8');
+      removeBtn.innerHTML = '✕';
+      removeBtn.title = 'Gast vom Tisch entfernen';
+      removeBtn.style.padding = '0px 6px';
+      removeBtn.style.marginLeft = '4px';
+      removeBtn.style.fontSize = '0.75rem';
+      removeBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        guest.tableId = null;
+        guest.seatNumber = null;
         saveAndRender();
-      }
-    });
-    rightIcons.appendChild(delBtn);
+      });
+      rightIcons.appendChild(removeBtn);
+    } else {
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-sm btn-danger guest-delete-btn spreadsheet-cell-control';
+      delBtn.setAttribute('data-grid-col', '8');
+      delBtn.innerHTML = '🗑️';
+      delBtn.title = 'Gast endgültig löschen';
+      delBtn.style.padding = '0px 4px';
+      delBtn.style.marginLeft = '4px';
+      delBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        if (confirm('Diesen Gast wirklich unwiderruflich löschen?')) {
+          const fam = getFamilyForGuest(guest.id);
+          if (fam) removeFromFamily(fam.id, guest.id);
+          state.guests = state.guests.filter(g => g.id !== guest.id);
+          saveAndRender();
+        }
+      });
+      rightIcons.appendChild(delBtn);
+    }
   }
 
   nameRow.appendChild(rightIcons);
@@ -419,4 +408,39 @@ export function renderGuestCard(guest, isDetailView, skipFamily, forceFullWidth)
 
   return card;
 }
+
+export function createFamilyButton(guest, rightIcons) {
+  const famBtn = document.createElement('button');
+  famBtn.className = 'btn btn-sm family-header-action-btn spreadsheet-cell-control';
+  famBtn.innerHTML = '👨‍👩‍👧‍👦';
+  famBtn.title = 'Gast mit Familie oder anderem Gast verknüpfen';
+  famBtn.style.padding = '0px 4px';
+  famBtn.style.marginRight = '2px';
+  famBtn.style.fontSize = '0.72rem';
+  famBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const existingWrap = rightIcons.querySelector('.single-fam-picker-wrap');
+    if (existingWrap) {
+      existingWrap.remove();
+      return;
+    }
+    const pickerWrap = document.createElement('div');
+    pickerWrap.className = 'single-fam-picker-wrap';
+    pickerWrap.style.cssText = 'position:absolute; right:36px; z-index:10; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; padding:4px 6px; box-shadow:0 4px 14px rgba(0,0,0,0.4); display:flex; align-items:center; gap:4px;';
+    const picker = makeSearchableGuestPicker('Partner / Gast wählen…', [guest.id], selectedId => {
+      createFamily(guest.id, selectedId);
+    }, true);
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✕';
+    closeBtn.style.cssText = 'background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.75rem; padding:0 4px;';
+    closeBtn.addEventListener('click', ev => { ev.stopPropagation(); pickerWrap.remove(); });
+    pickerWrap.appendChild(picker);
+    pickerWrap.appendChild(closeBtn);
+    rightIcons.insertBefore(pickerWrap, famBtn);
+    const pInput = picker.querySelector('input');
+    if (pInput) setTimeout(() => pInput.focus(), 20);
+  });
+  return famBtn;
+}
+
 

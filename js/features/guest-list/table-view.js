@@ -3,10 +3,10 @@
 import { state, saveState, saveAndRender } from '../../core/state.js';
 import { $, escHtml } from '../../utils/dom.js';
 import { renderFamilyGroupBlock } from './split-view.js';
-import { renderGuestCard } from './guest-row.js';
+import { renderGuestCard, createFamilyButton } from './guest-row.js';
 import { updateStats } from './guest-list.js';
-import { getTable, getActiveSeatNumbers } from '../../utils/seating.js';
-import { getFamilyForGuest } from '../../utils/family.js';
+import { getTable, getActiveSeatNumbers, getDiet } from '../../utils/seating.js';
+import { getFamilyForGuest, removeFromFamily } from '../../utils/family.js';
 
 export function renderTableView(panel) {
   panel.innerHTML = '';
@@ -321,6 +321,7 @@ export function appendQuickAddRow(panel, rowIndex) {
   // Quick-Add Trigger:
   let guestCreated = null;
   let spawnedNextRow = null;
+  let dotEl = null;
 
   const commitNewGuest = () => {
     if (guestCreated) return;
@@ -347,6 +348,23 @@ export function appendQuickAddRow(panel, rowIndex) {
     card.classList.remove('quick-add-row');
     actionsCol.innerHTML = '';
 
+    dotEl = document.createElement('span');
+    dotEl.className = 'diet-dot';
+    const diet = getDiet(guestCreated.dietId);
+    if (diet && diet.id !== 'none') {
+      dotEl.style.backgroundColor = diet.color;
+      dotEl.title = 'Diät: ' + diet.name;
+    } else {
+      dotEl.style.backgroundColor = 'transparent';
+      dotEl.title = 'Keine Diät-Einschränkung';
+    }
+    actionsCol.appendChild(dotEl);
+
+    const famBtn = createFamilyButton(guestCreated, actionsCol);
+    famBtn.setAttribute('data-grid-row', String(rowIndex));
+    famBtn.setAttribute('data-grid-col', '8');
+    actionsCol.appendChild(famBtn);
+
     const delBtn = document.createElement('button');
     delBtn.className = 'btn btn-sm btn-danger guest-delete-btn spreadsheet-cell-control';
     delBtn.setAttribute('data-grid-row', String(rowIndex));
@@ -357,6 +375,8 @@ export function appendQuickAddRow(panel, rowIndex) {
     delBtn.style.marginLeft = '4px';
     delBtn.addEventListener('click', e => {
       e.stopPropagation();
+      const fam = getFamilyForGuest(guestCreated.id);
+      if (fam) removeFromFamily(fam.id, guestCreated.id);
       state.guests = state.guests.filter(g => g.id !== guestCreated.id);
       saveAndRender();
     });
@@ -378,10 +398,13 @@ export function appendQuickAddRow(panel, rowIndex) {
 
     // If completely cleared back to blank and spawned row is still empty, remove spawned row and revert this row back to quick-add
     if (fn === '' && ln === '' && addr === '' && !hasTable && spawnedNextRow && spawnedNextRow.getAttribute('data-is-quick-add') === 'true') {
+      const fam = getFamilyForGuest(guestCreated.id);
+      if (fam) removeFromFamily(fam.id, guestCreated.id);
       state.guests = state.guests.filter(g => g.id !== guestCreated.id);
       guestCreated = null;
       spawnedNextRow.remove();
       spawnedNextRow = null;
+      dotEl = null;
       card.setAttribute('data-is-quick-add', 'true');
       card.classList.add('quick-add-row');
       actionsCol.innerHTML = '<span style="font-size:0.72rem; color:var(--text-muted); opacity:0.4;">+ neu</span>';
@@ -398,6 +421,18 @@ export function appendQuickAddRow(panel, rowIndex) {
     guestCreated.age = ageSel.value;
     guestCreated.tableId = tableSel.value ? parseInt(tableSel.value) : null;
     guestCreated.seatNumber = seatSel.value ? parseInt(seatSel.value) : null;
+
+    if (dotEl) {
+      const curDiet = getDiet(guestCreated.dietId);
+      if (curDiet && curDiet.id !== 'none') {
+        dotEl.style.backgroundColor = curDiet.color;
+        dotEl.title = 'Diät: ' + curDiet.name;
+      } else {
+        dotEl.style.backgroundColor = 'transparent';
+        dotEl.title = 'Keine Diät-Einschränkung';
+      }
+    }
+
     saveState();
     updateStats();
   };

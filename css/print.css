@@ -47,12 +47,17 @@
   /* Flatten the DOM tree for the venue page */
   #app,
   .app-body,
-  .venue-panel {
+  .venue-panel,
+  .venue-panel.venue-collapsed {
     display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
     position: static !important;
     height: auto !important;
     min-height: 0 !important;
     width: 100% !important;
+    max-width: none !important;
+    flex: none !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;

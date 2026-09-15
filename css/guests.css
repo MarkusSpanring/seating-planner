@@ -1,6 +1,7 @@
 /* ===== Guest Panel & Lists ===== */
 
 .guest-panel {
+  flex: 0 0 480px;
   width: 480px;
   min-width: 480px;
   background: var(--bg-secondary);
@@ -9,13 +10,15 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: width 0.3s ease, min-width 0.3s ease, flex 0.3s ease;
+  transition: flex 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .guest-panel.guest-panel-expanded {
-  width: auto;
+  flex: 1 1 100%;
+  width: 100%;
   min-width: 0;
-  flex: 1;
 }
 
 .panel-header {

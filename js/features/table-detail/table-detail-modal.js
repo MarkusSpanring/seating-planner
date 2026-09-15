@@ -185,7 +185,7 @@ export function renderTableDetailGuests(tableId) {
   container.appendChild(hr);
 
   guests.forEach(g => {
-    container.appendChild(renderGuestCard(g, true, true, true));
+    container.appendChild(renderGuestCard(g, true, true, true, true));
   });
 }
 
